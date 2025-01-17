@@ -17,19 +17,26 @@ pub enum Commands {
     Config(ConfigCommands),
 
     Build {
-        dot_env: String,
+        template: String,
 
-        #[arg(short, long, help="Overwrite the glogal keepass file")]
-        keepass: Option<String>
-    }
+        #[arg(
+            short,
+            long,
+            help = "when output is a relative path, it will make it relative to the folder of template when enabled or relative to current when disabled"
+        )]
+        relative_to_input: bool,
+
+        output: String,
+
+        #[arg(short, long, help = "Overwrite the glogal keepass file")]
+        keepass: Option<String>,
+    },
 }
 
 #[derive(Debug, Subcommand)]
 pub enum ConfigCommands {
     // #[command(help="Set the default keepass db file")]
-    SetDefaultKpDb {
-        url: Option<String>
-    },
+    SetDefaultKpDb { url: String },
     // #[command(help="Get the default keepass db file configured")]
-    GetKpDb {}
+    GetKpDb {},
 }

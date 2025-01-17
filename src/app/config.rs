@@ -3,37 +3,32 @@ use serde_yaml::{self};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct YamlConfig {
-    pub keepass: Option<String>
+    pub keepass: Option<String>,
 }
 
-
-pub struct GlobalConfig<'f>{
+pub struct GlobalConfig<'f> {
     file: &'f str,
-    pub config: YamlConfig
+    pub config: YamlConfig,
 }
 
 impl<'f> GlobalConfig<'f> {
-    pub fn new(file: &str) -> GlobalConfig {
+    pub fn new(file: &str) -> Result<GlobalConfig, Box<dyn std::error::Error>> {
         if !std::path::Path::new(file).exists() {
-            std::fs::write(file, "").unwrap();
+            std::fs::write(file, "")?;
         }
 
-        let config = match std::fs::read_to_string(file) {
-            Ok(contents) => serde_yaml::from_str(&contents).unwrap(),
-            Err(err) => {
-                println!("{}", err);
-                panic!("Config file cannot be loaded");
-            }
+        let contents = std::fs::read_to_string(file)?;
+        let config = if contents.is_empty() {
+            YamlConfig { keepass: None }
+        } else {
+            serde_yaml::from_str(&contents)?
         };
 
-        GlobalConfig {
-            file,
-            config
-        }
+        Ok(GlobalConfig { file, config })
     }
 
     pub fn get_file(&self) -> &str {
-        return self.file
+        return self.file;
     }
 
     pub fn save(&self) {

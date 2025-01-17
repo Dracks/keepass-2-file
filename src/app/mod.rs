@@ -1,3 +1,3 @@
-pub mod handlebars;
-pub mod config;
 pub mod commands;
+pub mod config;
+pub mod handlebars;
