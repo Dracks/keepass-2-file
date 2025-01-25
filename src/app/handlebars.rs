@@ -1,6 +1,6 @@
 use handlebars::{
-    no_escape, Context, Handlebars, Helper, HelperDef, JsonRender, JsonValue, RenderContext,
-    RenderError, ScopedJson,
+    no_escape, Context, Handlebars, Helper, HelperDef, JsonValue, RenderContext, RenderError,
+    ScopedJson, handlebars_helper
 };
 use keepass::{db::NodeRef, Database};
 
@@ -22,7 +22,7 @@ impl HelperDef for KeepassHelper {
         let args = h
             .params()
             .iter()
-            .map(|x| x.value().render())
+            .map(|x| x.render())
             .collect::<Vec<String>>();
         let path = args.iter().map(|x| x.as_str()).collect::<Vec<&str>>();
         println!("{:?}", args);
@@ -30,7 +30,6 @@ impl HelperDef for KeepassHelper {
             match node {
                 NodeRef::Group(_) => Ok(ScopedJson::Derived(JsonValue::from(NOT_FOUND_ERROR))),
                 NodeRef::Entry(entry) => {
-                    //println!("Found! {0}", entry.get_title().unwrap())
                     if let Some(password) = entry.get_password() {
                         Ok(ScopedJson::from(JsonValue::from(password)))
                     } else {
@@ -44,11 +43,16 @@ impl HelperDef for KeepassHelper {
     }
 }
 
+handlebars_helper!(stringify: |x: String| {
+    format!("\"{}\"", x.replace("\"", "\\\"").replace("$", "\\$"))
+});
+
 pub fn build_handlebars<'reg>(db: Database) -> Handlebars<'reg> {
     let mut handlebars = Handlebars::new();
 
     handlebars.register_escape_fn(no_escape);
     handlebars.register_helper("keepass", Box::new(KeepassHelper { db }));
+    handlebars.register_helper("stringify", Box::new(stringify));
 
     handlebars
 }
@@ -81,18 +85,19 @@ mod tests {
         assert!(rendered.contains("VAR_SECRET=\"S$c&<J)=EVm#xo{t]<ml\""));
     }
 
-    /*#[test]
+    #[test]
     fn test_handlebars_keepass_with_string_that_needs_encoding() {
         let handlebars = build_handlebars(get_db());
 
-        let template = "VAR_NAME=\"My name\"\nVAR_SECRET=\"{{keepass \"group1\" \"test3\"}}\"";
+        let template = "VAR_NAME=\"My name\"\nVAR_SECRET={{stringify (keepass \"test1\")}}\"";
 
         let result = handlebars.render_template(template, &());
+        println!("{:?}", result);
         assert!(result.is_ok());
 
         let rendered = result.unwrap();
         assert!(rendered.contains("VAR_SECRET=\"8/k,9P`Y\\\"\\\"7)*]CNdM~,\""));
-    }*/
+    }
 
     #[test]
     fn test_handlebars_keepass_unknown_variable() {
@@ -106,4 +111,17 @@ mod tests {
         let rendered = result.unwrap();
         assert!(rendered.contains("VAR_SECRET=\"<Not found keepass entry>\""));
     }
+
+    /*#[test]
+    fn test_handlebars_keepass_retrieve_username() {
+        let handlebars = build_handlebars(get_db());
+
+        let template = "VAR_SECRET=\"{{keepass {field: \"username\"} \"not-found-group\"}}\"";
+
+        let result = handlebars.render_template(template, &());
+        assert!(result.is_ok());
+
+        let rendered = result.unwrap();
+        assert!(rendered.contains("VAR_SECRET=\"<Not found keepass entry>\""));
+    }*/
 }
