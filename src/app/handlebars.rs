@@ -14,6 +14,8 @@ pub struct KeepassHelper {
 
 const NOT_FOUND_ERROR: &str = "<Not found keepass entry>";
 const NO_PASSWORD_ERROR: &str = "<No password found in entry>";
+const NO_USERNAME_ERROR: &str = "<No username found in entry>";
+const NO_URL_ERROR: &str = "<No URL found in entry>";
 const INVALID_FIELD_TYPE: &str = "<Invalid field type>";
 const ATTRIBUTE_NOT_FOUND_ERROR: &str = "<Attribute not found in entry>";
 
@@ -91,7 +93,12 @@ impl HelperDef for KeepassHelper {
                         if let Some(content) = content {
                             Ok(ScopedJson::from(JsonValue::from(content)))
                         } else {
-                            Ok(ScopedJson::from(JsonValue::from(NO_PASSWORD_ERROR)))
+                            Ok(ScopedJson::from(JsonValue::from(match field {
+                                FieldSelect::Password => NO_PASSWORD_ERROR,
+                                FieldSelect::Username => NO_USERNAME_ERROR,
+                                FieldSelect::Url => NO_URL_ERROR,
+                                FieldSelect::AdditionalAttributes => ATTRIBUTE_NOT_FOUND_ERROR,
+                            })))
                         }
                     } else {
                         Ok(ScopedJson::from(JsonValue::from(INVALID_FIELD_TYPE)))
@@ -202,5 +209,25 @@ mod tests {
         let rendered = result.unwrap();
         assert!(rendered.contains("URL=\"http://complex.url\""));
         assert!(rendered.contains("ADDITIONAL=\"protected-attribute\""));
+    }
+
+    #[test]
+    fn test_handlebars_keepass_missing_fields() {
+        let handlebars = build_handlebars(get_db());
+
+        let template = "PASSWORD=\"{{keepass \"missing\"}}\"
+            USERNAME=\"{{keepass field=username \"missing\"}}\"
+            URL=\"{{keepass field=url \"missing\"}}\"
+            ATTRIBUTE=\"{{keepass field=additional-attributes attribute=missing \"missing\"}}\"
+        ";
+
+        let result = handlebars.render_template(template, &());
+        assert!(result.is_ok());
+
+        let rendered = result.unwrap();
+        assert!(rendered.contains("PASSWORD=\"<No password found in entry>\""));
+        assert!(rendered.contains("USERNAME=\"<No username found in entry>\""));
+        assert!(rendered.contains("URL=\"<No URL found in entry>\""));
+        assert!(rendered.contains("ATTRIBUTE=\"<Attribute not found in entry>\""));
     }
 }
