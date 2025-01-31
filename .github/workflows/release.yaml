@@ -1,8 +1,5 @@
 name: Build and Release
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       draft:
@@ -11,48 +8,77 @@ on:
         default: true
         type: boolean
 
+permissions:
+  contents: write
+
 jobs:
-  build:
+  build-and-upload:
+    name: Build and upload
+    runs-on: ${{ matrix.os }}
+
     strategy:
       matrix:
+        # You can add more, for any target you'd like!
         include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            binary_name: app-linux-amd64
-          - os: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-            binary_name: app-linux-arm64
-          - os: macos-latest
+          - build: linux
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          - build: macos-intel
+            os: macos-latest
             target: x86_64-apple-darwin
-            binary_name: app-darwin-amd64
-          - os: macos-latest
+          - build: macos
+            os: macos-latest
             target: aarch64-apple-darwin
-            binary_name: app-darwin-arm64
-    runs-on: ${{ matrix.os }}
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build Project
-        run: cargo build --release --target ${{ matrix.target }}
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Rust
+        # Or @nightly if you want
+        uses: dtolnay/rust-toolchain@stable
+        # Arguments to pass in
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          # Make Rust compile to our target (defined in the matrix)
+          targets: ${{ matrix.target }}
+
+      - name: Get the release version from the package
+        shell: bash
+        run: echo "VERSION=$(cargo tree | grep keepass-2-file | cut -d' ' -f1 | cut -d'v' -f2)" >> $GITHUB_ENV
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --verbose --release --target ${{ matrix.target }}
+
+      - name: Build archive
+        shell: bash
+        run: |
+          # Replace with the name of your binary
+          binary_name="keepass-2-file"
+
+          dirname="$binary_name-${{ env.VERSION }}-${{ matrix.target }}"
+          mkdir -p "$dirname"
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            mv "target/${{ matrix.target }}/release/$binary_name.exe" "$dirname"
+          else
+            mv "target/${{ matrix.target }}/release/$binary_name" "$dirname"
+          fi
+
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            7z a "$dirname.zip" "$dirname"
+            echo "ASSET=$dirname.zip" >> $GITHUB_ENV
+          else
+            tar -czf "$dirname.tar.gz" "$dirname"
+            echo "ASSET=$dirname.tar.gz" >> $GITHUB_ENV
+          fi
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ${{ env.ASSET }}
+          tag_name: ${{ env.VERSION }}
           draft: ${{ inputs.draft || false }}
-          prerelease: false
-
-      - name: Upload Release Assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./target/${{ matrix.target }}/release/app
-          asset_name: ${{ matrix.binary_name }}
-          asset_content_type: application/octet-stream
