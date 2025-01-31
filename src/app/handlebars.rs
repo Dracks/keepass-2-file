@@ -1,6 +1,6 @@
 use handlebars::{
-    no_escape, Context, Handlebars, Helper, HelperDef, JsonValue, RenderContext, RenderError,
-    ScopedJson, handlebars_helper
+    handlebars_helper, no_escape, Context, Handlebars, Helper, HelperDef, JsonValue, RenderContext,
+    RenderError, ScopedJson,
 };
 use keepass::{db::NodeRef, Database};
 
@@ -44,7 +44,7 @@ impl HelperDef for KeepassHelper {
 }
 
 handlebars_helper!(stringify: |x: String| {
-    format!("\"{}\"", x.replace("\"", "\\\"").replace("$", "\\$"))
+    format!("\"{}\"", x.replace('\"', "\\\"").replace('$', "\\$"))
 });
 
 pub fn build_handlebars<'reg>(db: Database) -> Handlebars<'reg> {
