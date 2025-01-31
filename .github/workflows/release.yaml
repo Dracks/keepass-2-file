@@ -44,7 +44,7 @@ jobs:
 
       - name: Get the release version from the package
         shell: bash
-        run: echo "VERSION=$(cargo tree | grep keepass-2-file | cut -d' ' -f1 | cut -d'v' -f2)" >> $GITHUB_ENV
+        run: echo "VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')" >> $GITHUB_ENV
 
       - name: Build
         uses: actions-rs/cargo@v1
@@ -76,9 +76,10 @@ jobs:
           fi
 
       - name: Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             ${{ env.ASSET }}
           tag_name: ${{ env.VERSION }}
+          name: ${{ env.VERSION }}
           draft: ${{ inputs.draft || false }}
