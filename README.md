@@ -1,4 +1,3 @@
-markdown
 # keepass-2-file
 
 A command-line tool to generate environment files using KeePass databases as a secure source for sensitive values.
