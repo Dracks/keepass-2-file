@@ -66,7 +66,7 @@ CUSTOM_FIELD={{keepass field=additional-attributes attribute=field-name "Entry"}
 
 ### String Escaping
 ```handlebars
-ESCAPED_VALUE={{stringify (keeppass "Entry")}}
+ESCAPED_VALUE={{stringify (keepass "Entry")}}
 ```
 
 ## Example Template
