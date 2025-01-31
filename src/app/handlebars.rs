@@ -61,7 +61,7 @@ mod tests {
     use super::*;
 
     fn get_db() -> Database {
-        let mut file = File::open("test_Resources/test_db.kdbx").expect("Test DB cannot be open");
+        let mut file = File::open("test_resources/test_db.kdbx").expect("Test DB cannot be open");
 
         let key = DatabaseKey::new().with_password("MyTestPass");
         Database::open(&mut file, key).expect("Cannot open the DB")
