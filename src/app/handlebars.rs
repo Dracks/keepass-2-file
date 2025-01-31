@@ -53,7 +53,7 @@ pub fn build_handlebars<'reg>(db: Database) -> Handlebars<'reg> {
     handlebars.register_escape_fn(no_escape);
     handlebars.register_helper("keepass", Box::new(KeepassHelper { db }));
 
-    return handlebars;
+    handlebars
 }
 
 #[cfg(test)]

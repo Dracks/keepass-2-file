@@ -1,5 +1,4 @@
 use clap::Parser;
-use dirs;
 use keepass::{Database, DatabaseKey};
 use std::error::Error;
 use std::fs::File;
@@ -17,7 +16,7 @@ fn get_output_path(template: String, output: String, relative_to_input: bool) ->
         return output.to_string();
     } else if relative_to_input {
         let template_path = std::path::Path::new(&template);
-        template_dir = template_path.parent().unwrap_or(&template_dir);
+        template_dir = template_path.parent().unwrap_or(template_dir);
     }
     template_dir.join(output).to_str().unwrap().to_string()
 }

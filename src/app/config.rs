@@ -11,7 +11,7 @@ pub struct GlobalConfig<'f> {
     pub config: YamlConfig,
 }
 
-impl<'f> GlobalConfig<'f> {
+impl GlobalConfig<'_> {
     pub fn new(file: &str) -> Result<GlobalConfig, Box<dyn std::error::Error>> {
         if !std::path::Path::new(file).exists() {
             std::fs::write(file, "")?;
@@ -28,7 +28,7 @@ impl<'f> GlobalConfig<'f> {
     }
 
     pub fn get_file(&self) -> &str {
-        return self.file;
+        self.file
     }
 
     pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
