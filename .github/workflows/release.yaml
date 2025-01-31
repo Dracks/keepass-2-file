@@ -13,7 +13,22 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary_name: app-linux-amd64
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            binary_name: app-linux-arm64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            binary_name: app-darwin-amd64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            binary_name: app-darwin-arm64
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -23,12 +38,13 @@ jobs:
         with:
           profile: minimal
           toolchain: stable
+          target: ${{ matrix.target }}
 
       - name: Build Project
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release
+          args: --release --target ${{ matrix.target }}
 
       - name: Create Release
         id: create_release
@@ -47,6 +63,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./target/release/app
-          asset_name: app
+          asset_path: ./target/${{ matrix.target }}/release/app
+          asset_name: ${{ matrix.binary_name }}
           asset_content_type: application/octet-stream
