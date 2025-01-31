@@ -8,6 +8,9 @@ pub struct KeepassHelper {
     db: Database,
 }
 
+const NOT_FOUND_ERROR: &str = "<Not found keepass entry>";
+const NO_PASSWORD_ERROR: &str = "<No password found in entry>";
+
 impl HelperDef for KeepassHelper {
     fn call_inner<'reg: 'rc, 'rc>(
         &self,
@@ -25,24 +28,18 @@ impl HelperDef for KeepassHelper {
         println!("{:?}", args);
         if let Some(node) = self.db.root.get(&path) {
             match node {
-                NodeRef::Group(_) => Ok(ScopedJson::Derived(JsonValue::from(
-                    "<Not found keepass entry>",
-                ))),
+                NodeRef::Group(_) => Ok(ScopedJson::Derived(JsonValue::from(NOT_FOUND_ERROR))),
                 NodeRef::Entry(entry) => {
                     //println!("Found! {0}", entry.get_title().unwrap())
                     if let Some(password) = entry.get_password() {
                         Ok(ScopedJson::from(JsonValue::from(password)))
                     } else {
-                        Ok(ScopedJson::from(JsonValue::from(
-                            "<No password found in entry>",
-                        )))
+                        Ok(ScopedJson::from(JsonValue::from(NO_PASSWORD_ERROR)))
                     }
                 }
             }
         } else {
-            Ok(ScopedJson::Derived(JsonValue::from(
-                "<Not found keepass entry>",
-            )))
+            Ok(ScopedJson::Derived(JsonValue::from(NOT_FOUND_ERROR)))
         }
     }
 }
