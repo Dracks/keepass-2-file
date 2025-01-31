@@ -47,11 +47,11 @@ jobs:
         run: echo "VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')" >> $GITHUB_ENV
 
       - name: Build
-        uses: cross-rs/cross@v0.2
+        uses: actions-rs/cargo@v1
         with:
+          use-cross: true
           command: build
           args: --verbose --release --target ${{ matrix.target }}
-          use-cross: ${{ matrix.build == 'linux' }}
 
       - name: Build archive
         shell: bash
