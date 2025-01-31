@@ -1,8 +1,12 @@
 use handlebars::{
-    handlebars_helper, no_escape, Context, Handlebars, Helper, HelperDef, JsonValue, RenderContext,
-    RenderError, ScopedJson,
+    handlebars_helper, no_escape, Context, Handlebars, Helper, HelperDef, JsonValue, PathAndJson,
+    RenderContext, RenderError, ScopedJson,
 };
-use keepass::{db::NodeRef, Database};
+use keepass::{
+    db::{Entry, NodeRef},
+    Database,
+};
+use std::error::Error;
 
 pub struct KeepassHelper {
     db: Database,
@@ -10,6 +14,51 @@ pub struct KeepassHelper {
 
 const NOT_FOUND_ERROR: &str = "<Not found keepass entry>";
 const NO_PASSWORD_ERROR: &str = "<No password found in entry>";
+const NO_USERNAME_ERROR: &str = "<No username found in entry>";
+const NO_URL_ERROR: &str = "<No URL found in entry>";
+const INVALID_FIELD_TYPE: &str = "<Invalid field type>";
+const ATTRIBUTE_NOT_FOUND_ERROR: &str = "<Attribute not found in entry>";
+
+enum FieldSelect {
+    Password,
+    Username,
+    Url,
+    AdditionalAttributes,
+}
+
+fn get_field(field_path: Option<&PathAndJson>) -> Result<FieldSelect, Box<dyn Error>> {
+    if let Some(field_path) = field_path {
+        if let Some(field) = field_path.relative_path() {
+            println!("{}", field);
+            match field.to_lowercase().as_str() {
+                "username" => Ok(FieldSelect::Username),
+                "password" => Ok(FieldSelect::Password),
+                "url" => Ok(FieldSelect::Url),
+                "additional-attributes" => Ok(FieldSelect::AdditionalAttributes),
+                _ => Err(format!("Invalid field type {}", field).into()),
+            }
+        } else {
+            Ok(FieldSelect::Password)
+        }
+    } else {
+        Ok(FieldSelect::Password)
+    }
+}
+
+fn get_additional_fields<'a>(
+    entry: &'a Entry,
+    attribute_path: Option<&'a PathAndJson<'a>>,
+) -> &'a str {
+    if let Some(attribute_path) = attribute_path {
+        if let Some(attribute) = attribute_path.relative_path() {
+            let contents = entry.get(attribute);
+            if let Some(contents) = contents {
+                return contents;
+            }
+        }
+    }
+    ATTRIBUTE_NOT_FOUND_ERROR
+}
 
 impl HelperDef for KeepassHelper {
     fn call_inner<'reg: 'rc, 'rc>(
@@ -25,15 +74,34 @@ impl HelperDef for KeepassHelper {
             .map(|x| x.render())
             .collect::<Vec<String>>();
         let path = args.iter().map(|x| x.as_str()).collect::<Vec<&str>>();
+        let field = get_field(h.hash_get("field"));
+        println!("{:?}", h);
         println!("{:?}", args);
         if let Some(node) = self.db.root.get(&path) {
             match node {
                 NodeRef::Group(_) => Ok(ScopedJson::Derived(JsonValue::from(NOT_FOUND_ERROR))),
                 NodeRef::Entry(entry) => {
-                    if let Some(password) = entry.get_password() {
-                        Ok(ScopedJson::from(JsonValue::from(password)))
+                    if let Ok(field) = field {
+                        let content: Option<&str> = match field {
+                            FieldSelect::Password => entry.get_password(),
+                            FieldSelect::Username => entry.get_username(),
+                            FieldSelect::Url => entry.get_url(),
+                            FieldSelect::AdditionalAttributes => {
+                                Some(get_additional_fields(entry, h.hash_get("attribute")))
+                            }
+                        };
+                        if let Some(content) = content {
+                            Ok(ScopedJson::from(JsonValue::from(content)))
+                        } else {
+                            Ok(ScopedJson::from(JsonValue::from(match field {
+                                FieldSelect::Password => NO_PASSWORD_ERROR,
+                                FieldSelect::Username => NO_USERNAME_ERROR,
+                                FieldSelect::Url => NO_URL_ERROR,
+                                FieldSelect::AdditionalAttributes => ATTRIBUTE_NOT_FOUND_ERROR,
+                            })))
+                        }
                     } else {
-                        Ok(ScopedJson::from(JsonValue::from(NO_PASSWORD_ERROR)))
+                        Ok(ScopedJson::from(JsonValue::from(INVALID_FIELD_TYPE)))
                     }
                 }
             }
@@ -112,16 +180,54 @@ mod tests {
         assert!(rendered.contains("VAR_SECRET=\"<Not found keepass entry>\""));
     }
 
-    /*#[test]
+    #[test]
     fn test_handlebars_keepass_retrieve_username() {
         let handlebars = build_handlebars(get_db());
 
-        let template = "VAR_SECRET=\"{{keepass {field: \"username\"} \"not-found-group\"}}\"";
+        let template = "VAR_SECRET=\"{{keepass field=username \"test1\"}}\"";
+
+        let result = handlebars.render_template(template, &());
+        println!("{:?}", result);
+        assert!(result.is_ok());
+
+        let rendered = result.unwrap();
+        assert!(rendered.contains("VAR_SECRET=\"user1\""));
+    }
+
+    #[test]
+    fn test_handlebars_keepass_retrieve_other_fields() {
+        let handlebars = build_handlebars(get_db());
+
+        let template = "URL=\"{{keepass field=url \"complex\"}}\"
+            ADDITIONAL=\"{{keepass field=additional-attributes attribute=attribute-1 \"complex\"}}\"
+        ";
+
+        let result = handlebars.render_template(template, &());
+        println!("{:?}", result);
+        assert!(result.is_ok());
+
+        let rendered = result.unwrap();
+        assert!(rendered.contains("URL=\"http://complex.url\""));
+        assert!(rendered.contains("ADDITIONAL=\"protected-attribute\""));
+    }
+
+    #[test]
+    fn test_handlebars_keepass_missing_fields() {
+        let handlebars = build_handlebars(get_db());
+
+        let template = "PASSWORD=\"{{keepass \"missing\"}}\"
+            USERNAME=\"{{keepass field=username \"missing\"}}\"
+            URL=\"{{keepass field=url \"missing\"}}\"
+            ATTRIBUTE=\"{{keepass field=additional-attributes attribute=missing \"missing\"}}\"
+        ";
 
         let result = handlebars.render_template(template, &());
         assert!(result.is_ok());
 
         let rendered = result.unwrap();
-        assert!(rendered.contains("VAR_SECRET=\"<Not found keepass entry>\""));
-    }*/
+        assert!(rendered.contains("PASSWORD=\"<No password found in entry>\""));
+        assert!(rendered.contains("USERNAME=\"<No username found in entry>\""));
+        assert!(rendered.contains("URL=\"<No URL found in entry>\""));
+        assert!(rendered.contains("ATTRIBUTE=\"<Attribute not found in entry>\""));
+    }
 }
