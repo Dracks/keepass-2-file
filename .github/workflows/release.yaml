@@ -44,7 +44,7 @@ jobs:
 
       - name: Get the release version from the package
         shell: bash
-        run: echo "VERSION=$(cargo tree | grep keepass-2-file | cut -d' ' -f1)" >> $GITHUB_ENV
+        run: echo "VERSION=$(cargo tree | grep keepass-2-file | cut -d' ' -f2)" >> $GITHUB_ENV
 
       - name: Build
         uses: actions-rs/cargo@v1
