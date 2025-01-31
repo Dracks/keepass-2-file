@@ -1,5 +1,6 @@
 use handlebars::{
-    no_escape, Context, Handlebars, Helper, HelperDef, JsonValue, RenderContext, RenderError, ScopedJson,
+    no_escape, Context, Handlebars, Helper, HelperDef, JsonValue, RenderContext, RenderError,
+    ScopedJson,
 };
 use keepass::{db::NodeRef, Database, DatabaseKey};
 use std::error::Error;
@@ -61,9 +62,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     handlebars.register_escape_fn(no_escape);
     handlebars.register_helper("keepass", Box::new(KeepassHelper { db }));
 
-    println!(
-        "{}",
-        handlebars.render_template(&template, &())?
-    );
+    println!("{}", handlebars.render_template(&template, &())?);
     Ok(())
 }
