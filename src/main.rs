@@ -91,7 +91,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .map_err(|e| format!("Failed to render template: {}", e))?;
             let output_path = get_output_path(template, output, relative_to_input);
 
-            std::fs::write(output_path.clone(), rendered).map_err(|e| format!("Failed to write output file {}: {}", output_path, e))?;
+            std::fs::write(output_path.clone(), rendered)
+                .map_err(|e| format!("Failed to write output file {}: {}", output_path, e))?;
 
             println!("file overwrited {} generated ", output_path)
         }

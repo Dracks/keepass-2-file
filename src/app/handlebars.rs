@@ -1,5 +1,6 @@
 use handlebars::{
-    no_escape, Context, Handlebars, Helper, HelperDef, JsonRender, JsonValue, RenderContext, RenderError, ScopedJson
+    no_escape, Context, Handlebars, Helper, HelperDef, JsonRender, JsonValue, RenderContext,
+    RenderError, ScopedJson,
 };
 use keepass::{db::NodeRef, Database};
 
@@ -20,10 +21,7 @@ impl HelperDef for KeepassHelper {
             .iter()
             .map(|x| x.value().render())
             .collect::<Vec<String>>();
-        let path = args
-            .iter()
-            .map(|x| x.as_str())
-            .collect::<Vec<&str>>();
+        let path = args.iter().map(|x| x.as_str()).collect::<Vec<&str>>();
         println!("{:?}", args);
         if let Some(node) = self.db.root.get(&path) {
             match node {
@@ -35,7 +33,9 @@ impl HelperDef for KeepassHelper {
                     if let Some(password) = entry.get_password() {
                         Ok(ScopedJson::from(JsonValue::from(password)))
                     } else {
-                        Ok(ScopedJson::from(JsonValue::from("<No password found in entry>")))
+                        Ok(ScopedJson::from(JsonValue::from(
+                            "<No password found in entry>",
+                        )))
                     }
                 }
             }

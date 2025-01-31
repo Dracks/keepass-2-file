@@ -31,7 +31,7 @@ impl<'f> GlobalConfig<'f> {
         return self.file;
     }
 
-    pub fn save(&self) -> Result<(), Box<dyn std::error::Error>>  {
+    pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
         let yaml = serde_yaml::to_string(&self.config)?;
         std::fs::write(self.file, yaml)?;
         Ok(())
