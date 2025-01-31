@@ -1,5 +1,5 @@
 [package]
-name = "env-generator-rs"
+name = "keepass-2-file"
 version = "0.1.0"
 edition = "2021"
 

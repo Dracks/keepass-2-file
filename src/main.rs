@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .to_string();
     let config_path = args
         .config
-        .unwrap_or_else(|| format!("{}/.config/env-generator.yaml", home));
+        .unwrap_or_else(|| format!("{}/.config/keepass-2-file.yaml", home));
 
     // Load and parse the configuration file
     let mut config = GlobalConfig::new(&config_path)?;
