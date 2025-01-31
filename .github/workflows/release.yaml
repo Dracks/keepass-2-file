@@ -81,4 +81,5 @@ jobs:
           files: |
             ${{ env.ASSET }}
           tag_name: ${{ env.VERSION }}
+          name: ${{ env.VERSION }}
           draft: ${{ inputs.draft || false }}
