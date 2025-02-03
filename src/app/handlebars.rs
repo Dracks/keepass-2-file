@@ -1,5 +1,6 @@
 use handlebars::{
-    handlebars_helper, no_escape, Context, Handlebars, Helper, HelperDef, JsonRender, JsonValue, PathAndJson, RenderContext, RenderError, ScopedJson
+    handlebars_helper, no_escape, Context, Handlebars, Helper, HelperDef, JsonRender, JsonValue,
+    PathAndJson, RenderContext, RenderError, ScopedJson,
 };
 use keepass::{
     db::{Entry, NodeRef},
@@ -57,7 +58,7 @@ fn get_additional_fields<'a>(
         }
         let json_value = attribute_path.value();
         let value = json_value.render();
-        if value.len()>0{
+        if value.len() > 0 {
             let contents = entry.get(value.as_str());
             if let Some(contents) = contents {
                 return contents;
