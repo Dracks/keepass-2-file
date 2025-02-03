@@ -58,7 +58,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             output,
             relative_to_input,
         } => {
-            println!("Building with .env file: {}", template);
+            println!("Building template file: {}", template);
             println!("KeePass file: {:?}", keepass);
 
             let keepass = match keepass {

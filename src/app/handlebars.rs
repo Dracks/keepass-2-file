@@ -1,6 +1,6 @@
 use handlebars::{
-    handlebars_helper, no_escape, Context, Handlebars, Helper, HelperDef, JsonValue, PathAndJson,
-    RenderContext, RenderError, ScopedJson,
+    handlebars_helper, no_escape, Context, Handlebars, Helper, HelperDef, JsonRender, JsonValue,
+    PathAndJson, RenderContext, RenderError, ScopedJson,
 };
 use keepass::{
     db::{Entry, NodeRef},
@@ -29,7 +29,7 @@ enum FieldSelect {
 fn get_field(field_path: Option<&PathAndJson>) -> Result<FieldSelect, Box<dyn Error>> {
     if let Some(field_path) = field_path {
         if let Some(field) = field_path.relative_path() {
-            println!("{}", field);
+            // println!("{}", field);
             match field.to_lowercase().as_str() {
                 "username" => Ok(FieldSelect::Username),
                 "password" => Ok(FieldSelect::Password),
@@ -56,6 +56,14 @@ fn get_additional_fields<'a>(
                 return contents;
             }
         }
+        let json_value = attribute_path.value();
+        let value = json_value.render();
+        if !value.is_empty() {
+            let contents = entry.get(value.as_str());
+            if let Some(contents) = contents {
+                return contents;
+            }
+        }
     }
     ATTRIBUTE_NOT_FOUND_ERROR
 }
@@ -75,8 +83,8 @@ impl HelperDef for KeepassHelper {
             .collect::<Vec<String>>();
         let path = args.iter().map(|x| x.as_str()).collect::<Vec<&str>>();
         let field = get_field(h.hash_get("field"));
-        println!("{:?}", h);
-        println!("{:?}", args);
+        // println!("{:?}", h);
+        // println!("{:?}", args);
         if let Some(node) = self.db.root.get(&path) {
             match node {
                 NodeRef::Group(_) => Ok(ScopedJson::Derived(JsonValue::from(NOT_FOUND_ERROR))),
@@ -200,6 +208,7 @@ mod tests {
 
         let template = "URL=\"{{keepass field=url \"complex\"}}\"
             ADDITIONAL=\"{{keepass field=additional-attributes attribute=attribute-1 \"complex\"}}\"
+            ATTRIBUTE_WITH_SPACES=\"{{keepass field=additional-attributes attribute=\"attribute with spaces\" \"complex\"}}\"
         ";
 
         let result = handlebars.render_template(template, &());
@@ -209,6 +218,7 @@ mod tests {
         let rendered = result.unwrap();
         assert!(rendered.contains("URL=\"http://complex.url\""));
         assert!(rendered.contains("ADDITIONAL=\"protected-attribute\""));
+        assert!(rendered.contains("ATTRIBUTE_WITH_SPACES=\"some extra attr\""));
     }
 
     #[test]
