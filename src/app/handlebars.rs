@@ -58,7 +58,7 @@ fn get_additional_fields<'a>(
         }
         let json_value = attribute_path.value();
         let value = json_value.render();
-        if value.len() > 0 {
+        if !value.is_empty() {
             let contents = entry.get(value.as_str());
             if let Some(contents) = contents {
                 return contents;
