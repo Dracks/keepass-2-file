@@ -24,7 +24,7 @@ impl YamlConfig {
 
     pub fn add_template(&mut self, template_path: String, output_path: String) {
         let templates = self.templates.clone();
-        let mut templates = templates.unwrap_or(Vec::new());
+        let mut templates = templates.unwrap_or_default();
         templates.push(YamlConfigTemplate {
             template_path,
             output_path,
