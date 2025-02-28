@@ -53,7 +53,6 @@ fn get_field(field_path: Option<&PathAndJson>) -> FieldSelect {
 }
 
 fn get_additional_fields(entry: &Entry, field_name: String) -> String {
-    println!("{:#?}", field_name);
     let contents = entry.get(field_name.as_str());
     if let Some(contents) = contents {
         return contents.to_string();
@@ -83,21 +82,23 @@ impl HelperDef for KeepassHelper {
             match node {
                 NodeRef::Group(_) => Ok(ScopedJson::Derived(JsonValue::from(NOT_FOUND_ERROR))),
                 NodeRef::Entry(entry) => {
+                    let data: String;
                     let content = match field {
                         FieldSelect::Password => entry.get_password().map_or_else(
-                            || NO_PASSWORD_ERROR.to_string(),
-                            |content| content.to_string(),
+                            || NO_PASSWORD_ERROR,
+                            |content| content,
                         ),
                         FieldSelect::Username => entry.get_username().map_or_else(
-                            || NO_USERNAME_ERROR.to_string(),
-                            |content| content.to_string(),
+                            || NO_USERNAME_ERROR,
+                            |content| content,
                         ),
                         FieldSelect::Url => entry.get_url().map_or_else(
-                            || NO_URL_ERROR.to_string(),
-                            |content| content.to_string(),
+                            || NO_URL_ERROR,
+                            |content| content,
                         ),
                         FieldSelect::AdditionalAttributes { field_name } => {
-                            get_additional_fields(entry, field_name)
+                            data = get_additional_fields(entry, field_name);
+                            data.as_str()
                         }
                     };
                     Ok(ScopedJson::from(JsonValue::from(content)))
