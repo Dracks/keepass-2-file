@@ -30,6 +30,33 @@ fn get_absolute_path(path: String) -> String {
     }
 }
 
+fn open_keepass_db(keepass_path: String) -> Result<Database, Box<dyn Error>> {
+    let password = rpassword::prompt_password("Enter the KeePass database password: ")?;
+    let mut file = File::open(keepass_path).map_err(|_| "Keepass db file not found")?;
+    let key = DatabaseKey::new().with_password(&password);
+    Database::open(&mut file, key)
+        .map_err(|_| "Database cannot be opened, maybe password is wrong?".into())
+}
+
+fn render_and_save_template(
+    handlebars: &handlebars::Handlebars,
+    template_path: String,
+    output_path: String,
+) -> Result<(), Box<dyn Error>> {
+    let template_contents = std::fs::read_to_string(template_path.clone())
+        .map_err(|_| format!("template file cannot be found: {}", template_path))?;
+
+    let rendered = handlebars
+        .render_template(&template_contents, &())
+        .map_err(|e| format!("Failed to render template: {}", e))?;
+
+    std::fs::write(output_path.clone(), rendered)
+        .map_err(|e| format!("Failed to write output file {}: {}", output_path, e))?;
+
+    println!("file written: {}", output_path);
+    Ok(())
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Cli::parse();
 
@@ -103,26 +130,14 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
             };
 
-            let password =
-                rpassword::prompt_password("Enter the KeePass database password: ").unwrap();
-
-            let mut file = File::open(keepass).expect("Keepass db file not found");
-            let template_contents =
-                std::fs::read_to_string(template.clone()).expect("template file cannot be found");
-            let key = DatabaseKey::new().with_password(&password);
-            let db = Database::open(&mut file, key)
-                .expect("Database cannot be opened, maybe password is wrong?");
+            let db = open_keepass_db(keepass).expect("Database error");
 
             let handlebars = build_handlebars(db);
-            let rendered = handlebars
-                .render_template(&template_contents, &())
-                .map_err(|e| format!("Failed to render template: {}", e))?;
-            let output_path = get_output_path(template, output, relative_to_input);
 
-            std::fs::write(output_path.clone(), rendered)
-                .map_err(|e| format!("Failed to write output file {}: {}", output_path, e))?;
+            let output_path = get_output_path(template.clone(), output, relative_to_input);
 
-            println!("file overwrited {} generated ", output_path)
+            render_and_save_template(&handlebars, template, output_path)
+                .expect("Error generating the file");
         }
         Commands::BuildAll => {
             let files = config.config.get_templates();
@@ -142,27 +157,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                 keepass
             );
 
-            let password =
-                rpassword::prompt_password("Enter the KeePass database password: ").unwrap();
-
-            let mut file = File::open(keepass).expect("Keepass db file not found");
-
-            let key = DatabaseKey::new().with_password(&password);
-            let db = Database::open(&mut file, key)
-                .expect("Database cannot be opened, maybe password is wrong?");
+            let db = open_keepass_db(keepass).expect("Database error");
 
             let handlebars = build_handlebars(db);
 
             for template in files {
-                let template_contents = std::fs::read_to_string(template.template_path.clone())
-                    .expect("template file cannot be found");
-                let rendered = handlebars
-                    .render_template(&template_contents, &())
-                    .map_err(|e| format!("Failed to render template: {}", e))?;
-                let output_path = template.output_path;
-
-                std::fs::write(output_path.clone(), rendered)
-                    .map_err(|e| format!("Failed to write output file {}: {}", output_path, e))?;
+                render_and_save_template(
+                    &handlebars,
+                    template.template_path,
+                    template.output_path,
+                )?;
             }
         }
     }
