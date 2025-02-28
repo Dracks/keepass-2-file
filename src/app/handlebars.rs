@@ -39,7 +39,7 @@ fn extract_field_value(field_path: Option<&PathAndJson>) -> Option<String> {
     None
 }
 
-fn get_field(field_path: Option<&PathAndJson>) -> FieldSelect {
+fn extract_field_type(field_path: Option<&PathAndJson>) -> FieldSelect {
     if let Some(field) = extract_field_value(field_path) {
         // println!("{}", field);
         return match field.to_lowercase().as_str() {
@@ -75,7 +75,7 @@ impl HelperDef for KeepassHelper {
             .map(|x| x.render())
             .collect::<Vec<String>>();
         let path = args.iter().map(|x| x.as_str()).collect::<Vec<&str>>();
-        let field = get_field(h.hash_get("field"));
+        let field = extract_field_type(h.hash_get("field"));
         // println!("{:?}", h);
         // println!("{:?}", args);
         if let Some(node) = self.db.root.get(&path) {
