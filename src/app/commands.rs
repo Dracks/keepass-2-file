@@ -37,14 +37,15 @@ pub enum Commands {
 
 #[derive(Debug, Subcommand)]
 pub enum ConfigCommands {
-
-    SetDefaultKpDb { url: String },
+    SetDefaultKpDb {
+        url: String,
+    },
 
     GetKpDb,
 
     ListFiles,
 
-    AddFile{
+    AddFile {
         template: String,
         output: String,
         #[arg(
@@ -53,6 +54,5 @@ pub enum ConfigCommands {
             help = "when output is a relative path, it will make it relative to the folder of template when enabled or relative to current when disabled"
         )]
         relative_to_input: bool,
-    }
-
+    },
 }

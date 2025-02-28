@@ -4,17 +4,17 @@ use serde_yaml::{self};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct YamlConfigTemplate {
     pub template_path: String,
-    pub output_path: String
+    pub output_path: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct YamlConfig {
     pub keepass: Option<String>,
-    templates: Option<Vec<YamlConfigTemplate>>
+    templates: Option<Vec<YamlConfigTemplate>>,
 }
 
 impl YamlConfig {
-    pub fn get_templates(&self)-> Vec<YamlConfigTemplate> {
+    pub fn get_templates(&self) -> Vec<YamlConfigTemplate> {
         if let Some(ref templates) = self.templates {
             templates.to_vec()
         } else {
@@ -25,7 +25,10 @@ impl YamlConfig {
     pub fn add_template(&mut self, template_path: String, output_path: String) {
         let templates = self.templates.clone();
         let mut templates = templates.unwrap_or(Vec::new());
-        templates.push(YamlConfigTemplate { template_path, output_path });
+        templates.push(YamlConfigTemplate {
+            template_path,
+            output_path,
+        });
         templates.sort_by(|a, b| a.template_path.cmp(&b.template_path));
         self.templates = Some(templates)
     }
@@ -44,7 +47,10 @@ impl GlobalConfig<'_> {
 
         let contents = std::fs::read_to_string(file)?;
         let config = if contents.is_empty() {
-            YamlConfig { keepass: None, templates: None }
+            YamlConfig {
+                keepass: None,
+                templates: None,
+            }
         } else {
             serde_yaml::from_str(&contents)?
         };
