@@ -84,18 +84,15 @@ impl HelperDef for KeepassHelper {
                 NodeRef::Entry(entry) => {
                     let data: String;
                     let content = match field {
-                        FieldSelect::Password => entry.get_password().map_or_else(
-                            || NO_PASSWORD_ERROR,
-                            |content| content,
-                        ),
-                        FieldSelect::Username => entry.get_username().map_or_else(
-                            || NO_USERNAME_ERROR,
-                            |content| content,
-                        ),
-                        FieldSelect::Url => entry.get_url().map_or_else(
-                            || NO_URL_ERROR,
-                            |content| content,
-                        ),
+                        FieldSelect::Password => entry
+                            .get_password()
+                            .map_or_else(|| NO_PASSWORD_ERROR, |content| content),
+                        FieldSelect::Username => entry
+                            .get_username()
+                            .map_or_else(|| NO_USERNAME_ERROR, |content| content),
+                        FieldSelect::Url => entry
+                            .get_url()
+                            .map_or_else(|| NO_URL_ERROR, |content| content),
                         FieldSelect::AdditionalAttributes { field_name } => {
                             data = get_additional_fields(entry, field_name);
                             data.as_str()
