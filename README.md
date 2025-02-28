@@ -61,7 +61,7 @@ DB_URL={{keepass field=url "Entry"}}
 
 ### Additional Attributes
 ```handlebars
-CUSTOM_FIELD={{keepass field=additional-attributes attribute=field-name "Entry"}}
+CUSTOM_FIELD={{keepass field=field-name "Entry"}}
 ```
 
 ### String Escaping

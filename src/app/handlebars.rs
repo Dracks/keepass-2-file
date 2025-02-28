@@ -6,7 +6,6 @@ use keepass::{
     db::{Entry, NodeRef},
     Database,
 };
-use std::error::Error;
 
 pub struct KeepassHelper {
     db: Database,
@@ -16,56 +15,50 @@ const NOT_FOUND_ERROR: &str = "<Not found keepass entry>";
 const NO_PASSWORD_ERROR: &str = "<No password found in entry>";
 const NO_USERNAME_ERROR: &str = "<No username found in entry>";
 const NO_URL_ERROR: &str = "<No URL found in entry>";
-const INVALID_FIELD_TYPE: &str = "<Invalid field type>";
-const ATTRIBUTE_NOT_FOUND_ERROR: &str = "<Attribute not found in entry>";
+const ATTRIBUTE_NOT_FOUND_ERROR: &str = "<Attribute ({field-name}) not found in entry>";
 
+#[derive(Debug)]
 enum FieldSelect {
     Password,
     Username,
     Url,
-    AdditionalAttributes,
+    AdditionalAttributes { field_name: String },
 }
 
-fn get_field(field_path: Option<&PathAndJson>) -> Result<FieldSelect, Box<dyn Error>> {
+fn extract_field_value(field_path: Option<&PathAndJson>) -> Option<String> {
     if let Some(field_path) = field_path {
-        if let Some(field) = field_path.relative_path() {
-            // println!("{}", field);
-            match field.to_lowercase().as_str() {
-                "username" => Ok(FieldSelect::Username),
-                "password" => Ok(FieldSelect::Password),
-                "url" => Ok(FieldSelect::Url),
-                "additional-attributes" => Ok(FieldSelect::AdditionalAttributes),
-                _ => Err(format!("Invalid field type {}", field).into()),
-            }
-        } else {
-            Ok(FieldSelect::Password)
+        if let Some(field_value) = field_path.relative_path() {
+            return Some(field_value.to_string());
         }
-    } else {
-        Ok(FieldSelect::Password)
-    }
-}
-
-fn get_additional_fields<'a>(
-    entry: &'a Entry,
-    attribute_path: Option<&'a PathAndJson<'a>>,
-) -> &'a str {
-    if let Some(attribute_path) = attribute_path {
-        if let Some(attribute) = attribute_path.relative_path() {
-            let contents = entry.get(attribute);
-            if let Some(contents) = contents {
-                return contents;
-            }
-        }
-        let json_value = attribute_path.value();
+        let json_value = field_path.value();
         let value = json_value.render();
         if !value.is_empty() {
-            let contents = entry.get(value.as_str());
-            if let Some(contents) = contents {
-                return contents;
-            }
+            return Some(value);
         }
     }
-    ATTRIBUTE_NOT_FOUND_ERROR
+    None
+}
+
+fn extract_field_type(field_path: Option<&PathAndJson>) -> FieldSelect {
+    if let Some(field) = extract_field_value(field_path) {
+        // println!("{}", field);
+        return match field.to_lowercase().as_str() {
+            "username" => FieldSelect::Username,
+            "password" => FieldSelect::Password,
+            "url" => FieldSelect::Url,
+            _ => FieldSelect::AdditionalAttributes { field_name: field },
+        };
+    }
+    FieldSelect::Password
+}
+
+fn get_additional_fields(entry: &Entry, field_name: String) -> String {
+    let contents = entry.get(field_name.as_str());
+    if let Some(contents) = contents {
+        return contents.to_string();
+    }
+
+    ATTRIBUTE_NOT_FOUND_ERROR.replace("{field-name}", field_name.as_str())
 }
 
 impl HelperDef for KeepassHelper {
@@ -82,35 +75,30 @@ impl HelperDef for KeepassHelper {
             .map(|x| x.render())
             .collect::<Vec<String>>();
         let path = args.iter().map(|x| x.as_str()).collect::<Vec<&str>>();
-        let field = get_field(h.hash_get("field"));
+        let field = extract_field_type(h.hash_get("field"));
         // println!("{:?}", h);
         // println!("{:?}", args);
         if let Some(node) = self.db.root.get(&path) {
             match node {
                 NodeRef::Group(_) => Ok(ScopedJson::Derived(JsonValue::from(NOT_FOUND_ERROR))),
                 NodeRef::Entry(entry) => {
-                    if let Ok(field) = field {
-                        let content: Option<&str> = match field {
-                            FieldSelect::Password => entry.get_password(),
-                            FieldSelect::Username => entry.get_username(),
-                            FieldSelect::Url => entry.get_url(),
-                            FieldSelect::AdditionalAttributes => {
-                                Some(get_additional_fields(entry, h.hash_get("attribute")))
-                            }
-                        };
-                        if let Some(content) = content {
-                            Ok(ScopedJson::from(JsonValue::from(content)))
-                        } else {
-                            Ok(ScopedJson::from(JsonValue::from(match field {
-                                FieldSelect::Password => NO_PASSWORD_ERROR,
-                                FieldSelect::Username => NO_USERNAME_ERROR,
-                                FieldSelect::Url => NO_URL_ERROR,
-                                FieldSelect::AdditionalAttributes => ATTRIBUTE_NOT_FOUND_ERROR,
-                            })))
+                    let data: String;
+                    let content = match field {
+                        FieldSelect::Password => entry
+                            .get_password()
+                            .map_or_else(|| NO_PASSWORD_ERROR, |content| content),
+                        FieldSelect::Username => entry
+                            .get_username()
+                            .map_or_else(|| NO_USERNAME_ERROR, |content| content),
+                        FieldSelect::Url => entry
+                            .get_url()
+                            .map_or_else(|| NO_URL_ERROR, |content| content),
+                        FieldSelect::AdditionalAttributes { field_name } => {
+                            data = get_additional_fields(entry, field_name);
+                            data.as_str()
                         }
-                    } else {
-                        Ok(ScopedJson::from(JsonValue::from(INVALID_FIELD_TYPE)))
-                    }
+                    };
+                    Ok(ScopedJson::from(JsonValue::from(content)))
                 }
             }
         } else {
@@ -207,8 +195,8 @@ mod tests {
         let handlebars = build_handlebars(get_db());
 
         let template = "URL=\"{{keepass field=url \"complex\"}}\"
-            ADDITIONAL=\"{{keepass field=additional-attributes attribute=attribute-1 \"complex\"}}\"
-            ATTRIBUTE_WITH_SPACES=\"{{keepass field=additional-attributes attribute=\"attribute with spaces\" \"complex\"}}\"
+            ADDITIONAL=\"{{keepass field=attribute-1 \"complex\"}}\"
+            ATTRIBUTE_WITH_SPACES=\"{{keepass field=\"attribute with spaces\" \"complex\"}}\"
         ";
 
         let result = handlebars.render_template(template, &());
@@ -228,7 +216,7 @@ mod tests {
         let template = "PASSWORD=\"{{keepass \"missing\"}}\"
             USERNAME=\"{{keepass field=username \"missing\"}}\"
             URL=\"{{keepass field=url \"missing\"}}\"
-            ATTRIBUTE=\"{{keepass field=additional-attributes attribute=missing \"missing\"}}\"
+            ATTRIBUTE=\"{{keepass field=missing \"missing\"}}\"
         ";
 
         let result = handlebars.render_template(template, &());
@@ -238,6 +226,6 @@ mod tests {
         assert!(rendered.contains("PASSWORD=\"<No password found in entry>\""));
         assert!(rendered.contains("USERNAME=\"<No username found in entry>\""));
         assert!(rendered.contains("URL=\"<No URL found in entry>\""));
-        assert!(rendered.contains("ATTRIBUTE=\"<Attribute not found in entry>\""));
+        assert!(rendered.contains("ATTRIBUTE=\"<Attribute (missing) not found in entry>\""));
     }
 }
