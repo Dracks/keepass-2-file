@@ -130,14 +130,13 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
             };
 
-            let db = open_keepass_db(keepass).expect("Database error");
+            let db = open_keepass_db(keepass)?;
 
             let handlebars = build_handlebars(db);
 
             let output_path = get_output_path(template.clone(), output, relative_to_input);
 
-            render_and_save_template(&handlebars, template, output_path)
-                .expect("Error generating the file");
+            render_and_save_template(&handlebars, template, output_path)?;
         }
         Commands::BuildAll => {
             let files = config.config.get_templates();
