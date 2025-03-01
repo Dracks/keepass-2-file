@@ -8,7 +8,7 @@ use app::commands::{Cli, Commands, ConfigCommands};
 use app::config::GlobalConfig;
 use app::handlebars::build_handlebars;
 
-fn get_output_path(template: String, output: String, relative_to_input: bool) -> String {
+fn get_output_path(template: &String, output: String, relative_to_input: bool) -> String {
     let template_dir_buf = std::env::current_dir().unwrap();
     let mut template_dir: &std::path::Path = template_dir_buf.as_path();
 
@@ -43,14 +43,14 @@ fn render_and_save_template(
     template_path: String,
     output_path: String,
 ) -> Result<(), Box<dyn Error>> {
-    let template_contents = std::fs::read_to_string(template_path.clone())
+    let template_contents = std::fs::read_to_string(&template_path)
         .map_err(|_| format!("template file cannot be found: {}", template_path))?;
 
     let rendered = handlebars
         .render_template(&template_contents, &())
         .map_err(|e| format!("Failed to render template: {}", e))?;
 
-    std::fs::write(output_path.clone(), rendered)
+    std::fs::write(&output_path, rendered)
         .map_err(|e| format!("Failed to write output file {}: {}", output_path, e))?;
 
     println!("file written: {}", output_path);
@@ -101,7 +101,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 output,
                 relative_to_input,
             } => {
-                let output_path = get_output_path(template.clone(), output, relative_to_input);
+                let output_path = get_output_path(&template, output, relative_to_input);
                 config
                     .config
                     .add_template(get_absolute_path(template), get_absolute_path(output_path));
@@ -134,7 +134,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             let handlebars = build_handlebars(db);
 
-            let output_path = get_output_path(template.clone(), output, relative_to_input);
+            let output_path = get_output_path(&template, output, relative_to_input);
 
             render_and_save_template(&handlebars, template, output_path)?;
         }
