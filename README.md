@@ -12,9 +12,17 @@ A command-line tool to generate environment files using KeePass databases as a s
 
 ## Installation
 
+### From the source code
 ```bash
-cargo install keepass-2-file
+git clone git@github.com:Dracks/keepass-2-file
+cd keepass-2-file
+cargo install --path .
 ```
+
+### Downloading the last executable
+
+1. Download the executable from the repo
+2. Place it into a folder that you have in your PATH
 
 ## Usage
 
@@ -43,6 +51,33 @@ Options:
   -k, --keepass <FILE>     Overwrite the global keepass file
   -r, --relative-to-input  Make output path relative to template location
 ```
+
+### Config Command Options
+
+```bash
+keepass-2-file config <COMMAND> [ARGS]
+
+Commands:
+  set-default-kpdb <PATH>  Set the default KeePass database path
+  get-kpdb                 Get the current KeePass database path
+  add-file <PATH> <PATH>   Add a named file to the configuration
+  list-files               List all configured files
+```
+
+### Using Preconfigured files
+
+```bash
+# Add a commonly used template to your configuration
+keepass-2-file config add-file folder/templates/dev-template.hbs .env
+
+# List all configured files
+keepass-2-file config list-files
+
+# Will build all the templates configured in the config
+keepass-2-file build-all
+```
+
+**note**: the adding of files support the same flat -r/--relative-to-input to not specify the full path two times
 
 ## Template Syntax
 
