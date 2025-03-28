@@ -46,9 +46,8 @@ impl YamlConfig {
         self.templates = Some(
             templates
                 .filter(|template| {
-                    if let Some(template_name) = template.name.clone() {
-                        println!("{} {} {}", template_name, name, name != template_name);
-                        return name != template_name;
+                    if let Some(template_name) = &template.name {
+                        return &name != template_name;
                     }
                     true
                 })

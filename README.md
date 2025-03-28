@@ -51,9 +51,9 @@ keepass-2-file --config non/global/config/file.yaml config delete name template-
 keepass-2-file build <TEMPLATE> <OUTPUT> [OPTIONS]
 
 Options:
-  -k, --keepass <FILE>     Overwrite the global keepass file
-  -r, --relative-to-input  Make output path relative to template location
-  -p --password <Password> Uses the password as keepass password
+  -k, --keepass <FILE>      Overwrite the global keepass file
+  -r, --relative-to-input   Make output path relative to template location
+  -p, --password <Password> Uses the password as keepass password
 ```
 
 ### Config Command Options
