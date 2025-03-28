@@ -117,7 +117,7 @@ pub fn execute(args: Cli) -> Result<(), Box<dyn Error>> {
                 let templates = config.config.get_templates();
                 for template in templates {
                     println!("{:?}", template);
-                    if Path::new(&template.template_path).exists() {
+                    if !Path::new(&template.template_path).exists() {
                         println!(
                             "Template {} does not exist, removing from config",
                             template.template_path
@@ -237,6 +237,9 @@ templates:
 - template_path: ./test_resources/.env.example
   output_path: ./test_resources/tmp/.env
   name: valid
+- template_path: ./test_resources/.env.example
+  output_path: ./test_resources/tmp/.env2
+  name: other
 ";
         std::fs::create_dir_all("test_resources/tmp").unwrap();
         std::fs::write(config_file, test_config).unwrap();
@@ -256,11 +259,8 @@ templates:
             },
             config: None,
         });
-        match ret {
-            Ok(_) => assert!(false, "It should fail"),
-            Err(error) => {
-                assert_eq!(error.to_string(),"Failed to render template: Error rendering \"test_resources/file-with-error\" line 2, col 15: Helper not found keepass-2-file")
-            }
+        if let Err(error) = ret {
+            assert_eq!(error.to_string(),"Failed to render template: Error rendering \"test_resources/file-with-error\" line 2, col 15: Helper not found keepass-2-file")
         }
     }
 
@@ -279,7 +279,7 @@ templates:
         let out_config = out_config.unwrap();
 
         let templates = out_config.config.get_templates();
-        assert_eq!(templates.len(), 1);
+        assert_eq!(templates.len(), 2);
         assert_eq!(templates[0].name, Some(String::from("valid")));
     }
 
@@ -298,7 +298,7 @@ templates:
         let out_config = out_config.unwrap();
 
         let templates = out_config.config.get_templates();
-        assert_eq!(templates.len(), 1);
+        assert_eq!(templates.len(), 2);
         assert_eq!(templates[0].name, Some(String::from("valid")));
     }
 

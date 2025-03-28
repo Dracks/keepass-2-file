@@ -47,7 +47,7 @@ impl YamlConfig {
             templates
                 .filter(|template| {
                     if let Some(template_name) = template.name.clone() {
-                        return name == template_name;
+                        return name != template_name;
                     }
                     false
                 })
@@ -61,7 +61,8 @@ impl YamlConfig {
         self.templates = Some(
             templates
                 .filter(|template| {
-                    template.template_path == template_path && template.output_path == output_path
+                    !(template.template_path == template_path
+                        && template.output_path == output_path)
                 })
                 .collect(),
         );
