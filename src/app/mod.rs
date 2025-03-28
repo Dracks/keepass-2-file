@@ -1,8 +1,8 @@
-use commands::{Cli, Commands, ConfigCommands};
+use commands::{Cli, Commands, ConfigCommands, NameOrPath};
 use config::GlobalConfig;
 use handlebars::{build_handlebars, LibHandlebars};
 use keepass::{Database, DatabaseKey};
-use std::{error::Error, fs::File};
+use std::{error::Error, fs::File, path::Path};
 
 pub mod commands;
 pub mod config;
@@ -10,12 +10,12 @@ pub mod handlebars;
 
 fn get_output_path(template: &String, output: String, relative_to_input: bool) -> String {
     let template_dir_buf = std::env::current_dir().unwrap();
-    let mut template_dir: &std::path::Path = template_dir_buf.as_path();
+    let mut template_dir: &Path = template_dir_buf.as_path();
 
     if output.starts_with('/') {
         return output.to_string();
     } else if relative_to_input {
-        let template_path = std::path::Path::new(&template);
+        let template_path = Path::new(&template);
         template_dir = template_path.parent().unwrap_or(template_dir);
     }
     template_dir.join(output).to_str().unwrap().to_string()
@@ -113,6 +113,33 @@ pub fn execute(args: Cli) -> Result<(), Box<dyn Error>> {
                 );
                 config.save()?;
             }
+            ConfigCommands::Prune => {
+                let templates = config.config.get_templates();
+                for template in templates {
+                    println!("{:?}", template);
+                    if Path::new(&template.template_path).exists() {
+                        println!(
+                            "Template {} does not exist, removing from config",
+                            template.template_path
+                        );
+                        config
+                            .config
+                            .delete_template(template.template_path, template.output_path);
+                    }
+                }
+                config.save()?;
+            }
+            ConfigCommands::Delete { template } => {
+                match template {
+                    NameOrPath::Name { name } => {
+                        config.config.delete_templates(name);
+                    }
+                    NameOrPath::Paths { path, output } => {
+                        config.config.delete_template(path, output);
+                    }
+                }
+                config.save()?;
+            }
         },
         Commands::Build {
             template,
@@ -169,15 +196,27 @@ pub fn execute(args: Cli) -> Result<(), Box<dyn Error>> {
 
             for template in files {
                 let name = match template.name {
-                    Some(name) => name,
+                    Some(ref name) => name.clone(),
                     None => template.template_path.clone(),
                 };
-                render_and_save_template(
+                let result = render_and_save_template(
                     &mut handlebars,
                     name,
-                    template.template_path,
-                    template.output_path,
-                )?;
+                    template.template_path.clone(),
+                    template.output_path.clone(),
+                );
+                match result {
+                    Err(err) => {
+                        let name = match template.name {
+                            Some(name) => name,
+                            None => {
+                                format!("{} => {}", template.template_path, template.output_path)
+                            }
+                        };
+                        println!("Skipping template {} because of: {:?}", name, err)
+                    }
+                    Ok(_) => {}
+                }
             }
         }
     }
@@ -187,6 +226,23 @@ pub fn execute(args: Cli) -> Result<(), Box<dyn Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn create_config_1() -> &'static str {
+        let config_file = "test_resources/tmp/prune_config.yml";
+
+        let test_config = "keepass: ./test_resources/test_db.kdbx
+templates:
+- template_path: ./some-missing-file
+  output_path: something
+- template_path: ./test_resources/.env.example
+  output_path: ./test_resources/tmp/.env
+  name: valid
+";
+        std::fs::create_dir_all("test_resources/tmp").unwrap();
+        std::fs::write(config_file, test_config).unwrap();
+
+        config_file
+    }
 
     #[test]
     fn test_rendering_invalid_handlebars_template() {
@@ -206,5 +262,58 @@ mod tests {
                 assert_eq!(error.to_string(),"Failed to render template: Error rendering \"test_resources/file-with-error\" line 2, col 15: Helper not found keepass-2-file")
             }
         }
+    }
+
+    #[test]
+    fn test_prune_command() {
+        let config_file = create_config_1();
+        let result = execute(Cli {
+            config: Some(String::from(config_file)),
+            command: Commands::Config(ConfigCommands::Prune),
+        });
+        println!("{:?}", result);
+        assert!(result.is_ok());
+
+        let out_config = GlobalConfig::new(config_file);
+        assert!(out_config.is_ok());
+        let out_config = out_config.unwrap();
+
+        let templates = out_config.config.get_templates();
+        assert_eq!(templates.len(), 1);
+        assert_eq!(templates[0].name, Some(String::from("valid")));
+    }
+
+    #[test]
+    fn test_delete_command() {
+        let config_file = create_config_1();
+        let result = execute(Cli {
+            config: Some(String::from(config_file)),
+            command: Commands::Config(ConfigCommands::Prune),
+        });
+        println!("{:?}", result);
+        assert!(result.is_ok());
+
+        let out_config = GlobalConfig::new(config_file);
+        assert!(out_config.is_ok());
+        let out_config = out_config.unwrap();
+
+        let templates = out_config.config.get_templates();
+        assert_eq!(templates.len(), 1);
+        assert_eq!(templates[0].name, Some(String::from("valid")));
+    }
+
+    #[test]
+    fn test_build_all_but_skip_invalid() {
+        let config_file = create_config_1();
+        let result = execute(Cli {
+            config: Some(String::from(config_file)),
+            command: Commands::BuildAll {
+                password: Some(String::from("MyTestPass")),
+            },
+        });
+        println!("{:?}", result);
+        assert!(result.is_ok());
+
+        assert!(Path::new("test_resources/tmp/.env").exists());
     }
 }
