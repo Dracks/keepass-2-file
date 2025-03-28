@@ -7,6 +7,8 @@ use keepass::{
     Database,
 };
 
+pub type LibHandlebars<'reg> = Handlebars<'reg>;
+
 pub struct KeepassHelper {
     db: Database,
 }
