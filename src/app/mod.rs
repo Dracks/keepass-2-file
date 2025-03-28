@@ -205,17 +205,14 @@ pub fn execute(args: Cli) -> Result<(), Box<dyn Error>> {
                     template.template_path.clone(),
                     template.output_path.clone(),
                 );
-                match result {
-                    Err(err) => {
-                        let name = match template.name {
-                            Some(name) => name,
-                            None => {
-                                format!("{} => {}", template.template_path, template.output_path)
-                            }
-                        };
-                        println!("Skipping template {} because of: {:?}", name, err)
-                    }
-                    Ok(_) => {}
+                if let Err(err) = result {
+                    let name = match template.name {
+                        Some(name) => name,
+                        None => {
+                            format!("{} => {}", template.template_path, template.output_path)
+                        }
+                    };
+                    println!("Skipping template {} because of: {:?}", name, err)
                 }
             }
         }
@@ -288,7 +285,11 @@ templates:
         let config_file = create_config_1();
         let result = execute(Cli {
             config: Some(String::from(config_file)),
-            command: Commands::Config(ConfigCommands::Prune),
+            command: Commands::Config(ConfigCommands::Delete {
+                template: NameOrPath::Name {
+                    name: String::from("other"),
+                },
+            }),
         });
         println!("{:?}", result);
         assert!(result.is_ok());
@@ -299,7 +300,7 @@ templates:
 
         let templates = out_config.config.get_templates();
         assert_eq!(templates.len(), 2);
-        assert_eq!(templates[0].name, Some(String::from("valid")));
+        assert_eq!(templates[1].name, Some(String::from("valid")));
     }
 
     #[test]

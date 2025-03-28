@@ -47,12 +47,14 @@ impl YamlConfig {
             templates
                 .filter(|template| {
                     if let Some(template_name) = template.name.clone() {
+                        println!("{} {} {}", template_name, name, name != template_name);
                         return name != template_name;
                     }
-                    false
+                    true
                 })
                 .collect(),
         );
+        println!("{:?}", self.templates);
     }
 
     pub fn delete_template(&mut self, template_path: String, output_path: String) {
