@@ -40,6 +40,9 @@ keepass-2-file build template.env.hbs .env
 
 # Using relative output path, will generate the file in /some-project/envs/aws.env
 keepass-2-file build /some-project/devops/aws.env.hbs --relative-to-input ../envs/aws.env
+
+# delete the template with name template-name on the non-global config specified
+keepass-2-file --config non/global/config/file.yaml config delete name template-name
 ```
 
 ### Build Command Options
@@ -48,8 +51,9 @@ keepass-2-file build /some-project/devops/aws.env.hbs --relative-to-input ../env
 keepass-2-file build <TEMPLATE> <OUTPUT> [OPTIONS]
 
 Options:
-  -k, --keepass <FILE>     Overwrite the global keepass file
-  -r, --relative-to-input  Make output path relative to template location
+  -k, --keepass <FILE>      Overwrite the global keepass file
+  -r, --relative-to-input   Make output path relative to template location
+  -p, --password <Password> Uses the password as keepass password
 ```
 
 ### Config Command Options
@@ -58,17 +62,20 @@ Options:
 keepass-2-file config <COMMAND> [ARGS]
 
 Commands:
-  set-default-kpdb <PATH>  Set the default KeePass database path
-  get-kpdb                 Get the current KeePass database path
-  add-file <PATH> <PATH>   Add a named file to the configuration
-  list-files               List all configured files
+    set-default-kp-db  <PATH>        Set the default KeePass file
+    get-kp-db                        Get the current KeePass file
+    list-files                       List the templates inside the configuration
+    add-file <SOURCE> <DESTINATION>  Add a template into the config
+    prune                            Deletes all templates that the source doesn't exists
+    delete                           Deletes a template
+    help                             Print this message or the help of the given subcommand(s)
 ```
 
 ### Using Preconfigured files
 
 ```bash
 # Add a commonly used template to your configuration
-keepass-2-file config add-file folder/templates/dev-template.hbs .env
+keepass-2-file config add-file folder/templates/dev-template.hbs .env --name dev-template
 
 # List all configured files
 keepass-2-file config list-files

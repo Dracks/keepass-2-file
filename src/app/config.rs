@@ -39,6 +39,35 @@ impl YamlConfig {
         templates.sort_by(|a, b| a.template_path.cmp(&b.template_path));
         self.templates = Some(templates)
     }
+
+    pub fn delete_templates(&mut self, name: String) {
+        let templates = self.templates.clone();
+        let templates = templates.unwrap_or_default().into_iter();
+        self.templates = Some(
+            templates
+                .filter(|template| {
+                    if let Some(template_name) = &template.name {
+                        return &name != template_name;
+                    }
+                    true
+                })
+                .collect(),
+        );
+        println!("{:?}", self.templates);
+    }
+
+    pub fn delete_template(&mut self, template_path: String, output_path: String) {
+        let templates = self.templates.clone();
+        let templates = templates.unwrap_or_default().into_iter();
+        self.templates = Some(
+            templates
+                .filter(|template| {
+                    !(template.template_path == template_path
+                        && template.output_path == output_path)
+                })
+                .collect(),
+        );
+    }
 }
 
 pub struct GlobalConfig<'f> {
