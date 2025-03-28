@@ -3,6 +3,7 @@ use serde_yaml::{self};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct YamlConfigTemplate {
+    pub name: Option<String>,
     pub template_path: String,
     pub output_path: String,
 }
@@ -22,10 +23,11 @@ impl YamlConfig {
         }
     }
 
-    pub fn add_template(&mut self, template_path: String, output_path: String) {
+    pub fn add_template(&mut self, name: Option<String>, template_path: String, output_path: String) {
         let templates = self.templates.clone();
         let mut templates = templates.unwrap_or_default();
         templates.push(YamlConfigTemplate {
+            name,
             template_path,
             output_path,
         });

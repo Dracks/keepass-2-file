@@ -7,8 +7,9 @@ pub struct Cli {
     #[arg(value_name = "GLOBAL Config")]
     pub config: Option<String>,
 
+
     #[command(subcommand)]
-    pub commands: Commands,
+    pub command: Commands,
 }
 
 #[derive(Debug, Subcommand)]
@@ -30,9 +31,15 @@ pub enum Commands {
 
         #[arg(short, long, help = "Overwrite the glogal keepass file")]
         keepass: Option<String>,
+
+        #[arg(value_name = "Keepass Password")]
+        password: Option<String>,
     },
 
-    BuildAll,
+    BuildAll {
+        #[arg(value_name = "Keepass Password")]
+        password: Option<String>,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -46,6 +53,7 @@ pub enum ConfigCommands {
     ListFiles,
 
     AddFile {
+        name: Option<String>,
         template: String,
         output: String,
         #[arg(
