@@ -7,7 +7,6 @@ pub struct Cli {
     #[arg(value_name = "GLOBAL Config")]
     pub config: Option<String>,
 
-
     #[command(subcommand)]
     pub command: Commands,
 }

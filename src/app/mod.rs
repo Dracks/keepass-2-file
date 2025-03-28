@@ -8,7 +8,6 @@ pub mod commands;
 pub mod config;
 pub mod handlebars;
 
-
 fn get_output_path(template: &String, output: String, relative_to_input: bool) -> String {
     let template_dir_buf = std::env::current_dir().unwrap();
     let mut template_dir: &std::path::Path = template_dir_buf.as_path();
@@ -31,10 +30,13 @@ fn get_absolute_path(path: String) -> String {
     }
 }
 
-fn open_keepass_db(keepass_path: String, password: Option<String>) -> Result<Database, Box<dyn Error>> {
+fn open_keepass_db(
+    keepass_path: String,
+    password: Option<String>,
+) -> Result<Database, Box<dyn Error>> {
     let password = match password {
         Option::None => rpassword::prompt_password("Enter the KeePass database password: ")?,
-        Option::Some(pwd) => pwd
+        Option::Some(pwd) => pwd,
     };
     let mut file = File::open(keepass_path).map_err(|_| "Keepass db file not found")?;
     let key = DatabaseKey::new().with_password(&password);
@@ -104,9 +106,11 @@ pub fn execute(args: Cli) -> Result<(), Box<dyn Error>> {
                 relative_to_input,
             } => {
                 let output_path = get_output_path(&template, output, relative_to_input);
-                config
-                    .config
-                    .add_template(name, get_absolute_path(template), get_absolute_path(output_path));
+                config.config.add_template(
+                    name,
+                    get_absolute_path(template),
+                    get_absolute_path(output_path),
+                );
                 config.save()?;
             }
         },
@@ -115,7 +119,7 @@ pub fn execute(args: Cli) -> Result<(), Box<dyn Error>> {
             keepass,
             output,
             relative_to_input,
-            password
+            password,
         } => {
             println!("Building template file: {}", template);
             println!("KeePass file: {:?}", keepass);
@@ -165,8 +169,8 @@ pub fn execute(args: Cli) -> Result<(), Box<dyn Error>> {
 
             for template in files {
                 let name = match template.name {
-                    Some(name)=>name,
-                    None => template.template_path.clone()
+                    Some(name) => name,
+                    None => template.template_path.clone(),
                 };
                 render_and_save_template(
                     &mut handlebars,
@@ -186,19 +190,19 @@ mod tests {
 
     #[test]
     fn test_rendering_invalid_handlebars_template() {
-        let ret = execute(Cli{
+        let ret = execute(Cli {
             command: Commands::Build {
                 template: String::from("test_resources/file-with-error"),
                 relative_to_input: false,
                 output: String::from("test_outputs/file-with-error"),
                 keepass: Some(String::from("test_resources/test_db.kdbx")),
-                password: Some(String::from("MyTestPass"))
+                password: Some(String::from("MyTestPass")),
             },
-            config: None
+            config: None,
         });
         match ret {
             Ok(_) => assert!(false, "It should fail"),
-            Err(error) =>{
+            Err(error) => {
                 assert_eq!(error.to_string(),"Failed to render template: Error rendering \"test_resources/file-with-error\" line 2, col 15: Helper not found keepass-2-file")
             }
         }
