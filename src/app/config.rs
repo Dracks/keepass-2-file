@@ -64,7 +64,6 @@ impl YamlConfig {
                 })
                 .collect(),
         );
-        println!("{:?}", self.templates);
     }
 
     pub fn delete_template(&mut self, template_path: String, output_path: String) {
