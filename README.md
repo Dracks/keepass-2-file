@@ -12,6 +12,11 @@ A command-line tool to generate environment files using KeePass databases as a s
 
 ## Installation
 
+### From brew
+```bash
+brew install dracks/homebrew-dracks/keepass-2-file
+```
+
 ### From the source code
 ```bash
 git clone git@github.com:Dracks/keepass-2-file
