@@ -9,11 +9,11 @@ pub mod config;
 pub mod handlebars;
 
 fn join_relative(current: &Path, file: String) -> PathBuf {
-    if file.starts_with("./") {
-        current.join(&file[2..])
-    } else if file.starts_with("../"){
+    if let Some(without_rel_path) = file.strip_prefix("./") {
+        join_relative(current, String::from(without_rel_path))
+    } else if let Some(without_parent_path) = file.strip_prefix("../"){
         match current.parent(){
-            Some(parent) => join_relative(parent, file),
+            Some(parent) => join_relative(parent, String::from(without_parent_path)),
             None => panic!("File has more parent relative that current parents")
         }
     } else {
@@ -98,7 +98,7 @@ pub fn execute(args: Cli) -> Result<(), Box<dyn Error>> {
                 config.config.keepass = Some(url);
                 config.save()?;
             }
-            ConfigCommands::GetKpDb {} => match config.config.keepass {
+            ConfigCommands::GetKpDb => match config.config.keepass {
                 Some(url) => println!("Current file is {}", url),
                 None => println!(
                     "The current configuration '{}' doesn't contain a default keepass db",
@@ -237,6 +237,7 @@ pub fn execute(args: Cli) -> Result<(), Box<dyn Error>> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
 
     struct TestConfig {
         config_file: String
@@ -275,7 +276,13 @@ templates:
         }
     }
 
-    use super::*;
+    #[test]
+    fn test_join_relative_basic() {
+        let test_path = Path::new("/home/users/devel/");
+        let relative_path = String::from("./../.././file");
+        let result = join_relative(&test_path, relative_path);
+        assert_eq!(result.to_str().unwrap(), "/home/file");
+    }
 
     #[test]
     fn test_adding_new_template() {
