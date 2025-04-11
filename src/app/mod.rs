@@ -2,11 +2,28 @@ use commands::{Cli, Commands, ConfigCommands, NameOrPath};
 use config::GlobalConfig;
 use handlebars::{build_handlebars, LibHandlebars};
 use keepass::{Database, DatabaseKey};
-use std::{error::Error, fs::File, path::Path};
+use std::{
+    error::Error,
+    fs::File,
+    path::{Path, PathBuf},
+};
 
 pub mod commands;
 pub mod config;
 pub mod handlebars;
+
+fn join_relative(current: &Path, file: String) -> PathBuf {
+    if let Some(without_rel_path) = file.strip_prefix("./") {
+        join_relative(current, String::from(without_rel_path))
+    } else if let Some(without_parent_path) = file.strip_prefix("../") {
+        match current.parent() {
+            Some(parent) => join_relative(parent, String::from(without_parent_path)),
+            None => panic!("File has more parent relative that current parents"),
+        }
+    } else {
+        current.join(file)
+    }
+}
 
 fn get_output_path(template: &String, output: String, relative_to_input: bool) -> String {
     let template_dir_buf = std::env::current_dir().unwrap();
@@ -18,15 +35,23 @@ fn get_output_path(template: &String, output: String, relative_to_input: bool) -
         let template_path = Path::new(&template);
         template_dir = template_path.parent().unwrap_or(template_dir);
     }
-    template_dir.join(output).to_str().unwrap().to_string()
+    join_relative(template_dir, output)
+        .to_str()
+        .unwrap()
+        .to_string()
 }
 
 fn get_absolute_path(path: String) -> String {
     if path.starts_with('/') {
         path
     } else {
-        let current_dir = std::env::current_dir().unwrap();
-        current_dir.join(path).to_str().unwrap().to_string()
+        let current_buff = std::env::current_dir().unwrap();
+        let current_dir = current_buff.as_path();
+
+        join_relative(current_dir, path)
+            .to_str()
+            .unwrap()
+            .to_string()
     }
 }
 
@@ -83,7 +108,7 @@ pub fn execute(args: Cli) -> Result<(), Box<dyn Error>> {
                 config.config.keepass = Some(url);
                 config.save()?;
             }
-            ConfigCommands::GetKpDb {} => match config.config.keepass {
+            ConfigCommands::GetKpDb => match config.config.keepass {
                 Some(url) => println!("Current file is {}", url),
                 None => println!(
                     "The current configuration '{}' doesn't contain a default keepass db",
@@ -224,24 +249,101 @@ pub fn execute(args: Cli) -> Result<(), Box<dyn Error>> {
 mod tests {
     use super::*;
 
-    fn create_config_1() -> &'static str {
-        let config_file = "test_resources/tmp/prune_config.yml";
+    struct TestConfig {
+        config_file: String,
+    }
 
-        let test_config = "keepass: ./test_resources/test_db.kdbx
+    impl TestConfig {
+        fn create() -> TestConfig {
+            let uuid = uuid::Uuid::new_v4();
+            let config_file = format!("test_resources/tmp/config_{}.yml", uuid);
+            let current_path = std::env::current_dir().unwrap();
+            let current_path_display = current_path.display();
+
+            let test_config = format!(
+                "keepass: {current_path_display}/test_resources/test_db.kdbx
 templates:
-- template_path: ./some-missing-file
+- template_path: {current_path_display}/some-missing-file
   output_path: something
-- template_path: ./test_resources/.env.example
-  output_path: ./test_resources/tmp/.env
+- template_path: {current_path_display}/test_resources/.env.example
+  output_path: {current_path_display}/test_resources/tmp/.env
   name: valid
-- template_path: ./test_resources/.env.example
-  output_path: ./test_resources/tmp/.env2
+- template_path: {current_path_display}/test_resources/.env.example
+  output_path: {current_path_display}/test_resources/tmp/.env2
   name: other
-";
-        std::fs::create_dir_all("test_resources/tmp").unwrap();
-        std::fs::write(config_file, test_config).unwrap();
+        "
+            );
+            std::fs::create_dir_all("test_resources/tmp").unwrap();
+            std::fs::write(config_file.clone(), test_config).unwrap();
+            TestConfig { config_file }
+        }
+    }
 
-        config_file
+    impl Drop for TestConfig {
+        fn drop(&mut self) {
+            // Cleanup will happen even if test fails
+            std::fs::remove_file(&self.config_file).unwrap_or_default();
+        }
+    }
+
+    #[test]
+    fn test_join_relative_basic() {
+        let test_path = Path::new("/home/users/devel/");
+        let relative_path = String::from("./../.././file");
+        let result = join_relative(&test_path, relative_path);
+        assert_eq!(result.to_str().unwrap(), "/home/file");
+    }
+
+    #[test]
+    fn test_adding_new_template() {
+        let test = TestConfig::create();
+        let config_file = test.config_file.clone();
+        let result = execute(Cli {
+            command: Commands::Config(ConfigCommands::AddFile {
+                name: Some(String::from("New template")),
+                template: String::from("./test_resources/file-with-error"),
+                output: String::from("./tmp/error"),
+                relative_to_input: true,
+            }),
+            config: Some(String::from(config_file.clone())),
+        });
+
+        println!("{:?}", result);
+        assert!(result.is_ok());
+
+        let out_config = GlobalConfig::new(config_file.as_str());
+        assert!(out_config.is_ok());
+        let out_config = out_config.unwrap();
+
+        let templates = out_config.config.get_templates();
+        assert_eq!(templates.len(), 4);
+        assert_eq!(templates[3].name, Some(String::from("New template")));
+    }
+
+    #[test]
+    fn test_adding_existing_template_will_replace_it() {
+        let test = TestConfig::create();
+        let config_file = test.config_file.clone();
+        let result = execute(Cli {
+            command: Commands::Config(ConfigCommands::AddFile {
+                name: Some(String::from("New name")),
+                template: String::from("./test_resources/.env.example"),
+                output: String::from("./test_resources/tmp/.env"),
+                relative_to_input: false,
+            }),
+            config: Some(String::from(config_file.clone())),
+        });
+
+        println!("{:?}", result);
+        assert!(result.is_ok());
+
+        let out_config = GlobalConfig::new(config_file.as_str());
+        assert!(out_config.is_ok());
+        let out_config = out_config.unwrap();
+
+        let templates = out_config.config.get_templates();
+        assert_eq!(templates.len(), 3);
+        assert_eq!(templates[1].name, Some(String::from("New name")));
     }
 
     #[test]
@@ -263,15 +365,16 @@ templates:
 
     #[test]
     fn test_prune_command() {
-        let config_file = create_config_1();
+        let test = TestConfig::create();
+        let config_file = test.config_file.clone();
         let result = execute(Cli {
-            config: Some(String::from(config_file)),
+            config: Some(String::from(config_file.clone())),
             command: Commands::Config(ConfigCommands::Prune),
         });
         println!("{:?}", result);
         assert!(result.is_ok());
 
-        let out_config = GlobalConfig::new(config_file);
+        let out_config = GlobalConfig::new(config_file.as_str());
         assert!(out_config.is_ok());
         let out_config = out_config.unwrap();
 
@@ -282,9 +385,10 @@ templates:
 
     #[test]
     fn test_delete_command() {
-        let config_file = create_config_1();
+        let test = TestConfig::create();
+        let config_file = test.config_file.clone();
         let result = execute(Cli {
-            config: Some(String::from(config_file)),
+            config: Some(String::from(config_file.clone())),
             command: Commands::Config(ConfigCommands::Delete {
                 template: NameOrPath::Name {
                     name: String::from("other"),
@@ -294,7 +398,7 @@ templates:
         println!("{:?}", result);
         assert!(result.is_ok());
 
-        let out_config = GlobalConfig::new(config_file);
+        let out_config = GlobalConfig::new(config_file.as_str());
         assert!(out_config.is_ok());
         let out_config = out_config.unwrap();
 
@@ -305,7 +409,8 @@ templates:
 
     #[test]
     fn test_build_all_but_skip_invalid() {
-        let config_file = create_config_1();
+        let test = TestConfig::create();
+        let config_file = test.config_file.clone();
         let result = execute(Cli {
             config: Some(String::from(config_file)),
             command: Commands::BuildAll {

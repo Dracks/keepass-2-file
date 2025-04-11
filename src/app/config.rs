@@ -31,12 +31,23 @@ impl YamlConfig {
     ) {
         let templates = self.templates.clone();
         let mut templates = templates.unwrap_or_default();
-        templates.push(YamlConfigTemplate {
-            name,
-            template_path,
-            output_path,
+        let existing_template = templates
+            .iter_mut()
+            .find(|t| t.template_path == template_path && t.output_path == output_path);
+
+        if let Some(template) = existing_template {
+            template.name = name;
+        } else {
+            templates.push(YamlConfigTemplate {
+                name,
+                template_path,
+                output_path,
+            });
+        }
+        templates.sort_by(|a, b| match a.template_path.cmp(&b.template_path) {
+            std::cmp::Ordering::Equal => a.output_path.cmp(&b.output_path),
+            ord => ord,
         });
-        templates.sort_by(|a, b| a.template_path.cmp(&b.template_path));
         self.templates = Some(templates)
     }
 
@@ -53,7 +64,6 @@ impl YamlConfig {
                 })
                 .collect(),
         );
-        println!("{:?}", self.templates);
     }
 
     pub fn delete_template(&mut self, template_path: String, output_path: String) {
