@@ -31,9 +31,9 @@ impl YamlConfig {
     ) {
         let templates = self.templates.clone();
         let mut templates = templates.unwrap_or_default();
-        let existing_template = templates.iter_mut().find(|t| {
-            t.template_path == template_path && t.output_path == output_path
-        });
+        let existing_template = templates
+            .iter_mut()
+            .find(|t| t.template_path == template_path && t.output_path == output_path);
 
         if let Some(template) = existing_template {
             template.name = name;

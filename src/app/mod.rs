@@ -2,7 +2,11 @@ use commands::{Cli, Commands, ConfigCommands, NameOrPath};
 use config::GlobalConfig;
 use handlebars::{build_handlebars, LibHandlebars};
 use keepass::{Database, DatabaseKey};
-use std::{error::Error, fs::File, path::{Path, PathBuf}};
+use std::{
+    error::Error,
+    fs::File,
+    path::{Path, PathBuf},
+};
 
 pub mod commands;
 pub mod config;
@@ -11,10 +15,10 @@ pub mod handlebars;
 fn join_relative(current: &Path, file: String) -> PathBuf {
     if let Some(without_rel_path) = file.strip_prefix("./") {
         join_relative(current, String::from(without_rel_path))
-    } else if let Some(without_parent_path) = file.strip_prefix("../"){
-        match current.parent(){
+    } else if let Some(without_parent_path) = file.strip_prefix("../") {
+        match current.parent() {
             Some(parent) => join_relative(parent, String::from(without_parent_path)),
-            None => panic!("File has more parent relative that current parents")
+            None => panic!("File has more parent relative that current parents"),
         }
     } else {
         current.join(file)
@@ -31,7 +35,10 @@ fn get_output_path(template: &String, output: String, relative_to_input: bool) -
         let template_path = Path::new(&template);
         template_dir = template_path.parent().unwrap_or(template_dir);
     }
-    join_relative(template_dir, output).to_str().unwrap().to_string()
+    join_relative(template_dir, output)
+        .to_str()
+        .unwrap()
+        .to_string()
 }
 
 fn get_absolute_path(path: String) -> String {
@@ -41,7 +48,10 @@ fn get_absolute_path(path: String) -> String {
         let current_buff = std::env::current_dir().unwrap();
         let current_dir = current_buff.as_path();
 
-        join_relative(current_dir, path).to_str().unwrap().to_string()
+        join_relative(current_dir, path)
+            .to_str()
+            .unwrap()
+            .to_string()
     }
 }
 
@@ -240,7 +250,7 @@ mod tests {
     use super::*;
 
     struct TestConfig {
-        config_file: String
+        config_file: String,
     }
 
     impl TestConfig {
@@ -250,7 +260,8 @@ mod tests {
             let current_path = std::env::current_dir().unwrap();
             let current_path_display = current_path.display();
 
-            let test_config = format!("keepass: {current_path_display}/test_resources/test_db.kdbx
+            let test_config = format!(
+                "keepass: {current_path_display}/test_resources/test_db.kdbx
 templates:
 - template_path: {current_path_display}/some-missing-file
   output_path: something
@@ -260,12 +271,11 @@ templates:
 - template_path: {current_path_display}/test_resources/.env.example
   output_path: {current_path_display}/test_resources/tmp/.env2
   name: other
-        ");
+        "
+            );
             std::fs::create_dir_all("test_resources/tmp").unwrap();
             std::fs::write(config_file.clone(), test_config).unwrap();
-            TestConfig{
-                config_file
-            }
+            TestConfig { config_file }
         }
     }
 
@@ -293,9 +303,9 @@ templates:
                 name: Some(String::from("New template")),
                 template: String::from("./test_resources/file-with-error"),
                 output: String::from("./tmp/error"),
-                relative_to_input: true
+                relative_to_input: true,
             }),
-            config: Some(String::from(config_file.clone()))
+            config: Some(String::from(config_file.clone())),
         });
 
         println!("{:?}", result);
@@ -319,9 +329,9 @@ templates:
                 name: Some(String::from("New name")),
                 template: String::from("./test_resources/.env.example"),
                 output: String::from("./test_resources/tmp/.env"),
-                relative_to_input: false
+                relative_to_input: false,
             }),
-            config: Some(String::from(config_file.clone()))
+            config: Some(String::from(config_file.clone())),
         });
 
         println!("{:?}", result);
