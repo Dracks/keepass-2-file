@@ -79,7 +79,6 @@ fn render_and_save_template(
     vars: &HashMap<String, String>,
 ) -> Result<(), Box<dyn Error>> {
     handlebars.register_template_file(&name, template_path)?;
-    println!("{:?}", vars);
 
     let rendered = handlebars
         .render(&name, vars)
