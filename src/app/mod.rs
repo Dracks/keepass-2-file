@@ -106,103 +106,105 @@ pub fn execute(args: Cli) -> Result<(), Box<dyn Error>> {
     let mut config = GlobalConfig::new(&config_path)?;
 
     match args.command {
-        Commands::Config(config_command) => match config_command {
-            ConfigCommands::SetDefaultKpDb { url } => {
-                println!("Setting default KeePass DB URL: {:?}", url);
-                config.config.keepass = Some(url);
-                config.save()?;
-            }
-            ConfigCommands::GetKpDb => match config.config.keepass {
-                Some(url) => println!("Current file is {}", url),
-                None => println!(
-                    "The current configuration '{}' doesn't contain a default keepass db",
-                    config.get_file()
-                ),
-            },
-            ConfigCommands::ListFiles => {
-                let templates = config.config.get_templates();
-                if templates.is_empty() {
-                    println!("No templates defined");
-                } else {
-                    println!("Configured templates:");
-                    for template in templates {
-                        println!("\t {} -> {}", template.template_path, template.output_path)
-                    }
+        Commands::Config(config_command) => {
+            match config_command {
+                ConfigCommands::SetDefaultKpDb { url } => {
+                    println!("Setting default KeePass DB URL: {:?}", url);
+                    config.config.keepass = Some(url);
+                    config.save()?;
                 }
-            }
-            ConfigCommands::AddFile {
-                name,
-                template,
-                output,
-                relative_to_input,
-            } => {
-                let output_path = get_output_path(&template, output, relative_to_input);
-                config.config.add_template(
-                    name,
-                    get_absolute_path(template),
-                    get_absolute_path(output_path),
-                );
-                config.save()?;
-            }
-            ConfigCommands::Prune => {
-                let templates = config.config.get_templates();
-                for template in templates {
-                    println!("{:?}", template);
-                    if !Path::new(&template.template_path).exists() {
-                        println!(
-                            "Template {} does not exist, removing from config",
-                            template.template_path
-                        );
-                        config
-                            .config
-                            .delete_template(template.template_path, template.output_path);
-                    }
-                }
-                config.save()?;
-            }
-            ConfigCommands::Delete { template } => {
-                match template {
-                    NameOrPath::Name { name } => {
-                        config.config.delete_templates(name);
-                    }
-                    NameOrPath::Paths { path, output } => {
-                        config.config.delete_template(path, output);
-                    }
-                }
-                config.save()?;
-            }
-            ConfigCommands::ListVariables => {
-                let variables = config.config.get_vars();
-                if variables.is_empty() {
-                    println!("No variables defined");
-                } else {
-                    println!("Variables:");
-                    for (key, value) in variables {
-                        println!("\t{} = {}", key, value);
-                    }
-                }
-            }
-            ConfigCommands::AddVariables { variables } => {
-                for variable in variables {
-                    if let Some((key, value)) = variable.split_once('=') {
-                        if key.len()>0{
-                            config.config.add_var(key.to_string(), value.to_string());
-                        } else {
-                            eprintln!("Malformed variable: \"{variable}\": variable name cannot be empty");
-                        }
+                ConfigCommands::GetKpDb => match config.config.keepass {
+                    Some(url) => println!("Current file is {}", url),
+                    None => println!(
+                        "The current configuration '{}' doesn't contain a default keepass db",
+                        config.get_file()
+                    ),
+                },
+                ConfigCommands::ListFiles => {
+                    let templates = config.config.get_templates();
+                    if templates.is_empty() {
+                        println!("No templates defined");
                     } else {
-                        eprintln!("Malformed variable \"{variable}\": please use var=content");
+                        println!("Configured templates:");
+                        for template in templates {
+                            println!("\t {} -> {}", template.template_path, template.output_path)
+                        }
                     }
                 }
-                config.save()?;
-            }
-            ConfigCommands::DeleteVariables { variables } => {
-                for variable in variables {
-                    config.config.del_var(variable.to_string());
+                ConfigCommands::AddFile {
+                    name,
+                    template,
+                    output,
+                    relative_to_input,
+                } => {
+                    let output_path = get_output_path(&template, output, relative_to_input);
+                    config.config.add_template(
+                        name,
+                        get_absolute_path(template),
+                        get_absolute_path(output_path),
+                    );
+                    config.save()?;
                 }
-                config.save()?;
+                ConfigCommands::Prune => {
+                    let templates = config.config.get_templates();
+                    for template in templates {
+                        println!("{:?}", template);
+                        if !Path::new(&template.template_path).exists() {
+                            println!(
+                                "Template {} does not exist, removing from config",
+                                template.template_path
+                            );
+                            config
+                                .config
+                                .delete_template(template.template_path, template.output_path);
+                        }
+                    }
+                    config.save()?;
+                }
+                ConfigCommands::Delete { template } => {
+                    match template {
+                        NameOrPath::Name { name } => {
+                            config.config.delete_templates(name);
+                        }
+                        NameOrPath::Paths { path, output } => {
+                            config.config.delete_template(path, output);
+                        }
+                    }
+                    config.save()?;
+                }
+                ConfigCommands::ListVariables => {
+                    let variables = config.config.get_vars();
+                    if variables.is_empty() {
+                        println!("No variables defined");
+                    } else {
+                        println!("Variables:");
+                        for (key, value) in variables {
+                            println!("\t{} = {}", key, value);
+                        }
+                    }
+                }
+                ConfigCommands::AddVariables { variables } => {
+                    for variable in variables {
+                        if let Some((key, value)) = variable.split_once('=') {
+                            if key.len() > 0 {
+                                config.config.add_var(key.to_string(), value.to_string());
+                            } else {
+                                eprintln!("Malformed variable: \"{variable}\": variable name cannot be empty");
+                            }
+                        } else {
+                            eprintln!("Malformed variable \"{variable}\": please use var=content");
+                        }
+                    }
+                    config.save()?;
+                }
+                ConfigCommands::DeleteVariables { variables } => {
+                    for variable in variables {
+                        config.config.del_var(variable.to_string());
+                    }
+                    config.save()?;
+                }
             }
-        },
+        }
         Commands::Build {
             template,
             keepass,
@@ -469,10 +471,10 @@ mod tests {
             config: Some(String::from(test.get_file_path())),
             command: Commands::Config(ConfigCommands::AddVariables {
                 variables: Vec::from([
-                    String::from("no_equals_sign"),                // Missing '=' character
-                    String::from("connection_string=postgres://user:password=@localhost:5432/mydb"),  // Contains multiple '=' chars
-                    String::from("key="),                          // Empty value
-                    String::from("=value"),                        // Empty key
+                    String::from("no_equals_sign"), // Missing '=' character
+                    String::from("connection_string=postgres://user:password=@localhost:5432/mydb"), // Contains multiple '=' chars
+                    String::from("key="),   // Empty value
+                    String::from("=value"), // Empty key
                 ]),
             }),
         });
@@ -484,7 +486,12 @@ mod tests {
         assert_eq!(variables.len(), 2);
 
         // The connection string is truncated at the first '='
-        assert_eq!(variables.get("connection_string"), Some(&String::from("postgres://user:password=@localhost:5432/mydb")));
+        assert_eq!(
+            variables.get("connection_string"),
+            Some(&String::from(
+                "postgres://user:password=@localhost:5432/mydb"
+            ))
+        );
         // Should have been: "postgres://user:password@localhost:5432/mydb"
 
         // Empty values and keys are stored as is
