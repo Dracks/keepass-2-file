@@ -3,7 +3,7 @@ use config::GlobalConfig;
 use handlebars::{build_handlebars, LibHandlebars};
 use keepass::{Database, DatabaseKey};
 use std::{
-    collections::{HashMap},
+    collections::HashMap,
     error::Error,
     fs::File,
     path::{Path, PathBuf},
@@ -126,10 +126,7 @@ pub fn execute(args: Cli) -> Result<(), Box<dyn Error>> {
                 } else {
                     println!("Configured templates:");
                     for template in templates {
-                        println!(
-                            "\t {} -> {}",
-                            template.template_path, template.output_path
-                        )
+                        println!("\t {} -> {}", template.template_path, template.output_path)
                     }
                 }
             }
@@ -192,7 +189,7 @@ pub fn execute(args: Cli) -> Result<(), Box<dyn Error>> {
                     }
                 }
                 config.save()?;
-            },
+            }
             ConfigCommands::DeleteVariables { variables } => {
                 for variable in variables {
                     config.config.del_var(variable.to_string());
@@ -438,7 +435,7 @@ mod tests {
         assert_eq!(variables.get("email"), Some(&String::from("j@k.com")));
     }
 
-#[test]
+    #[test]
     fn test_delete_variables() {
         let test = TestConfig::create_with_vars();
         let result = execute(Cli {

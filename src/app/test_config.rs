@@ -21,7 +21,7 @@ pub mod tests {
 
         pub fn get(&self) -> GlobalConfig {
             GlobalConfig::new(&self.config_file)
-+        .expect("Failed to load temp config created by TestConfig")
+                .expect("Failed to load temp config created by TestConfig")
         }
 
         #[allow(dead_code)]
