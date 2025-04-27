@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use serde_yaml::{self};
 
@@ -12,6 +14,7 @@ pub struct YamlConfigTemplate {
 pub struct YamlConfig {
     pub keepass: Option<String>,
     templates: Option<Vec<YamlConfigTemplate>>,
+    variables: Option<HashMap<String, String>>,
 }
 
 impl YamlConfig {
@@ -78,6 +81,24 @@ impl YamlConfig {
                 .collect(),
         );
     }
+
+    pub fn get_vars(&self) -> HashMap<String, String> {
+        self.variables.clone().unwrap_or_default()
+    }
+
+    pub fn add_var(&mut self, var_name: String, value: String) {
+        let temp_variables = self.variables.clone();
+        let mut tmp_variables = temp_variables.unwrap_or_default();
+        tmp_variables.insert(var_name, value);
+        self.variables = Some(tmp_variables)
+    }
+
+    pub fn del_var(&mut self, var_name: String) {
+        let temp_variables = self.variables.clone();
+        let mut tmp_variables = temp_variables.unwrap_or_default();
+        tmp_variables.remove(&var_name);
+        self.variables = Some(tmp_variables)
+    }
 }
 
 pub struct GlobalConfig<'f> {
@@ -96,6 +117,7 @@ impl GlobalConfig<'_> {
             YamlConfig {
                 keepass: None,
                 templates: None,
+                variables: None,
             }
         } else {
             serde_yaml::from_str(&contents)?
