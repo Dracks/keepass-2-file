@@ -186,7 +186,7 @@ pub fn execute(args: Cli) -> Result<(), Box<dyn Error>> {
                 ConfigCommands::AddVariables { variables } => {
                     for variable in variables {
                         if let Some((key, value)) = variable.split_once('=') {
-                            if key.len() > 0 {
+                            if !key.is_empty() {
                                 config.config.add_var(key.to_string(), value.to_string());
                             } else {
                                 eprintln!("Malformed variable: \"{variable}\": variable name cannot be empty");
