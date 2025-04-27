@@ -3,6 +3,7 @@ use config::GlobalConfig;
 use handlebars::{build_handlebars, LibHandlebars};
 use keepass::{Database, DatabaseKey};
 use std::{
+    collections::{HashMap},
     error::Error,
     fs::File,
     path::{Path, PathBuf},
@@ -11,6 +12,7 @@ use std::{
 pub mod commands;
 pub mod config;
 pub mod handlebars;
+mod test_config;
 
 fn join_relative(current: &Path, file: String) -> PathBuf {
     if let Some(without_rel_path) = file.strip_prefix("./") {
@@ -74,11 +76,13 @@ fn render_and_save_template(
     name: String,
     template_path: String,
     output_path: String,
+    vars: &HashMap<String, String>,
 ) -> Result<(), Box<dyn Error>> {
     handlebars.register_template_file(&name, template_path)?;
+    println!("{:?}", vars);
 
     let rendered = handlebars
-        .render(&name, &())
+        .render(&name, vars)
         .map_err(|e| format!("Failed to render template: {}", e))?;
 
     std::fs::write(&output_path, rendered)
@@ -117,11 +121,16 @@ pub fn execute(args: Cli) -> Result<(), Box<dyn Error>> {
             },
             ConfigCommands::ListFiles => {
                 let templates = config.config.get_templates();
-                for template in templates {
-                    println!(
-                        "template: {} -> {}",
-                        template.template_path, template.output_path
-                    )
+                if templates.is_empty() {
+                    println!("No templates defined");
+                } else {
+                    println!("Configured templates:");
+                    for template in templates {
+                        println!(
+                            "\t {} -> {}",
+                            template.template_path, template.output_path
+                        )
+                    }
                 }
             }
             ConfigCommands::AddFile {
@@ -165,6 +174,31 @@ pub fn execute(args: Cli) -> Result<(), Box<dyn Error>> {
                 }
                 config.save()?;
             }
+            ConfigCommands::ListVariables => {
+                let variables = config.config.get_vars();
+                if variables.is_empty() {
+                    println!("No variables defined");
+                } else {
+                    println!("Variables:");
+                    for (key, value) in variables {
+                        println!("\t{} = {}", key, value);
+                    }
+                }
+            }
+            ConfigCommands::AddVariables { variables } => {
+                for variable in variables {
+                    if let Some((key, value)) = variable.split_once('=') {
+                        config.config.add_var(key.to_string(), value.to_string());
+                    }
+                }
+                config.save()?;
+            },
+            ConfigCommands::DeleteVariables { variables } => {
+                for variable in variables {
+                    config.config.del_var(variable.to_string());
+                }
+                config.save()?;
+            }
         },
         Commands::Build {
             template,
@@ -175,6 +209,7 @@ pub fn execute(args: Cli) -> Result<(), Box<dyn Error>> {
         } => {
             println!("Building template file: {}", template);
             println!("KeePass file: {:?}", keepass);
+            let variables = config.config.get_vars();
 
             let keepass = match keepass {
                 Some(url) => url,
@@ -195,9 +230,16 @@ pub fn execute(args: Cli) -> Result<(), Box<dyn Error>> {
 
             let output_path = get_output_path(&template, output, relative_to_input);
 
-            render_and_save_template(&mut handlebars, template.clone(), template, output_path)?;
+            render_and_save_template(
+                &mut handlebars,
+                template.clone(),
+                template,
+                output_path,
+                &variables,
+            )?;
         }
         Commands::BuildAll { password } => {
+            let variables = config.config.get_vars();
             let files = config.config.get_templates();
             let keepass = match config.config.keepass {
                 Some(url) => url,
@@ -229,6 +271,7 @@ pub fn execute(args: Cli) -> Result<(), Box<dyn Error>> {
                     name,
                     template.template_path.clone(),
                     template.output_path.clone(),
+                    &variables,
                 );
                 if let Err(err) = result {
                     let name = match template.name {
@@ -244,47 +287,11 @@ pub fn execute(args: Cli) -> Result<(), Box<dyn Error>> {
     }
     Ok(())
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    struct TestConfig {
-        config_file: String,
-    }
-
-    impl TestConfig {
-        fn create() -> TestConfig {
-            let uuid = uuid::Uuid::new_v4();
-            let config_file = format!("test_resources/tmp/config_{}.yml", uuid);
-            let current_path = std::env::current_dir().unwrap();
-            let current_path_display = current_path.display();
-
-            let test_config = format!(
-                "keepass: {current_path_display}/test_resources/test_db.kdbx
-templates:
-- template_path: {current_path_display}/some-missing-file
-  output_path: something
-- template_path: {current_path_display}/test_resources/.env.example
-  output_path: {current_path_display}/test_resources/tmp/.env
-  name: valid
-- template_path: {current_path_display}/test_resources/.env.example
-  output_path: {current_path_display}/test_resources/tmp/.env2
-  name: other
-        "
-            );
-            std::fs::create_dir_all("test_resources/tmp").unwrap();
-            std::fs::write(config_file.clone(), test_config).unwrap();
-            TestConfig { config_file }
-        }
-    }
-
-    impl Drop for TestConfig {
-        fn drop(&mut self) {
-            // Cleanup will happen even if test fails
-            std::fs::remove_file(&self.config_file).unwrap_or_default();
-        }
-    }
+    use test_config::tests::TestConfig;
 
     #[test]
     fn test_join_relative_basic() {
@@ -297,7 +304,6 @@ templates:
     #[test]
     fn test_adding_new_template() {
         let test = TestConfig::create();
-        let config_file = test.config_file.clone();
         let result = execute(Cli {
             command: Commands::Config(ConfigCommands::AddFile {
                 name: Some(String::from("New template")),
@@ -305,15 +311,13 @@ templates:
                 output: String::from("./tmp/error"),
                 relative_to_input: true,
             }),
-            config: Some(String::from(config_file.clone())),
+            config: Some(String::from(test.get_file_path())),
         });
 
         println!("{:?}", result);
         assert!(result.is_ok());
 
-        let out_config = GlobalConfig::new(config_file.as_str());
-        assert!(out_config.is_ok());
-        let out_config = out_config.unwrap();
+        let out_config = test.get();
 
         let templates = out_config.config.get_templates();
         assert_eq!(templates.len(), 4);
@@ -323,7 +327,6 @@ templates:
     #[test]
     fn test_adding_existing_template_will_replace_it() {
         let test = TestConfig::create();
-        let config_file = test.config_file.clone();
         let result = execute(Cli {
             command: Commands::Config(ConfigCommands::AddFile {
                 name: Some(String::from("New name")),
@@ -331,15 +334,13 @@ templates:
                 output: String::from("./test_resources/tmp/.env"),
                 relative_to_input: false,
             }),
-            config: Some(String::from(config_file.clone())),
+            config: Some(String::from(test.get_file_path())),
         });
 
         println!("{:?}", result);
         assert!(result.is_ok());
 
-        let out_config = GlobalConfig::new(config_file.as_str());
-        assert!(out_config.is_ok());
-        let out_config = out_config.unwrap();
+        let out_config = test.get();
 
         let templates = out_config.config.get_templates();
         assert_eq!(templates.len(), 3);
@@ -366,17 +367,14 @@ templates:
     #[test]
     fn test_prune_command() {
         let test = TestConfig::create();
-        let config_file = test.config_file.clone();
         let result = execute(Cli {
-            config: Some(String::from(config_file.clone())),
+            config: Some(String::from(test.get_file_path())),
             command: Commands::Config(ConfigCommands::Prune),
         });
         println!("{:?}", result);
         assert!(result.is_ok());
 
-        let out_config = GlobalConfig::new(config_file.as_str());
-        assert!(out_config.is_ok());
-        let out_config = out_config.unwrap();
+        let out_config = test.get();
 
         let templates = out_config.config.get_templates();
         assert_eq!(templates.len(), 2);
@@ -386,9 +384,8 @@ templates:
     #[test]
     fn test_delete_command() {
         let test = TestConfig::create();
-        let config_file = test.config_file.clone();
         let result = execute(Cli {
-            config: Some(String::from(config_file.clone())),
+            config: Some(String::from(test.get_file_path())),
             command: Commands::Config(ConfigCommands::Delete {
                 template: NameOrPath::Name {
                     name: String::from("other"),
@@ -398,9 +395,7 @@ templates:
         println!("{:?}", result);
         assert!(result.is_ok());
 
-        let out_config = GlobalConfig::new(config_file.as_str());
-        assert!(out_config.is_ok());
-        let out_config = out_config.unwrap();
+        let out_config = test.get();
 
         let templates = out_config.config.get_templates();
         assert_eq!(templates.len(), 2);
@@ -410,9 +405,8 @@ templates:
     #[test]
     fn test_build_all_but_skip_invalid() {
         let test = TestConfig::create();
-        let config_file = test.config_file.clone();
         let result = execute(Cli {
-            config: Some(String::from(config_file)),
+            config: Some(String::from(test.get_file_path())),
             command: Commands::BuildAll {
                 password: Some(String::from("MyTestPass")),
             },
@@ -421,5 +415,68 @@ templates:
         assert!(result.is_ok());
 
         assert!(Path::new("test_resources/tmp/.env").exists());
+    }
+
+    #[test]
+    fn test_add_variables() {
+        let test = TestConfig::create();
+        let result = execute(Cli {
+            config: Some(String::from(test.get_file_path())),
+            command: Commands::Config(ConfigCommands::AddVariables {
+                variables: Vec::from([
+                    String::from("var1=Some variable"),
+                    String::from("email=j@k.com"),
+                ]),
+            }),
+        });
+        println!("{:?}", result);
+        assert!(result.is_ok());
+
+        let variables = test.get().config.get_vars();
+        assert_eq!(variables.len(), 2);
+        assert_eq!(variables.get("var1"), Some(&String::from("Some variable")));
+        assert_eq!(variables.get("email"), Some(&String::from("j@k.com")));
+    }
+
+#[test]
+    fn test_delete_variables() {
+        let test = TestConfig::create_with_vars();
+        let result = execute(Cli {
+            config: Some(String::from(test.get_file_path())),
+            command: Commands::Config(ConfigCommands::DeleteVariables {
+                variables: Vec::from([String::from("something")]),
+            }),
+        });
+        println!("{:?}", result);
+        assert!(result.is_ok());
+
+        let variables = test.get().config.get_vars();
+        assert_eq!(variables.len(), 1);
+        assert_eq!(variables.get("email"), Some(&String::from("j@k.com")));
+
+        let templates = test.get().config.get_templates();
+        assert_eq!(templates.len(), 1);
+        assert_eq!(templates[0].name, Some(String::from("valid")));
+    }
+
+    #[test]
+    fn test_something_is_a_variable() {
+        let test = TestConfig::create_with_vars();
+        let result = execute(Cli {
+            config: Some(String::from(test.get_file_path())),
+            command: Commands::Build {
+                template: String::from("./test_resources/with_variables"),
+                output: String::from("./test_resources/tmp/with_variables"),
+                keepass: None,
+                password: Some(String::from("MyTestPass")),
+                relative_to_input: false,
+            },
+        });
+        println!("{:?}", result);
+        assert!(result.is_ok());
+
+        let output_file_path = String::from("test_resources/tmp/with_variables");
+        let file_contents = std::fs::read_to_string(output_file_path).unwrap();
+        assert_eq!(file_contents.trim(), "SOMETHING=\"is a variable\"");
     }
 }
