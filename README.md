@@ -73,8 +73,8 @@ Commands:
     add-file <SOURCE> <DESTINATION>  Add a template into the config
     prune                            Deletes all templates that the source doesn't exists
     delete                           Deletes a template
-    add-variables <var1=value>...    Add a default variable
-    delete-variables  <var1>         Delete a variable variable
+    add-variables <var1=value>...    Add one or more default global variables
+    delete-variables <var1>...        Delete one or more default global variables
     help                             Print this message or the help of the given subcommand(s)
 ```
 
