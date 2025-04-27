@@ -185,7 +185,13 @@ pub fn execute(args: Cli) -> Result<(), Box<dyn Error>> {
             ConfigCommands::AddVariables { variables } => {
                 for variable in variables {
                     if let Some((key, value)) = variable.split_once('=') {
-                        config.config.add_var(key.to_string(), value.to_string());
+                        if key.len()>0{
+                            config.config.add_var(key.to_string(), value.to_string());
+                        } else {
+                            eprintln!("Malformed variable: \"{variable}\": variable name cannot be empty");
+                        }
+                    } else {
+                        eprintln!("Malformed variable \"{variable}\": please use var=content");
                     }
                 }
                 config.save()?;
@@ -454,6 +460,35 @@ mod tests {
         let templates = test.get().config.get_templates();
         assert_eq!(templates.len(), 1);
         assert_eq!(templates[0].name, Some(String::from("valid")));
+    }
+
+    #[test]
+    fn test_add_variables_with_malformed_input() {
+        let test = TestConfig::create();
+        let result = execute(Cli {
+            config: Some(String::from(test.get_file_path())),
+            command: Commands::Config(ConfigCommands::AddVariables {
+                variables: Vec::from([
+                    String::from("no_equals_sign"),                // Missing '=' character
+                    String::from("connection_string=postgres://user:password=@localhost:5432/mydb"),  // Contains multiple '=' chars
+                    String::from("key="),                          // Empty value
+                    String::from("=value"),                        // Empty key
+                ]),
+            }),
+        });
+        assert!(result.is_ok());
+
+        let variables = test.get().config.get_vars();
+
+        // Only 3 variables should be added (the one without '=' is skipped)
+        assert_eq!(variables.len(), 2);
+
+        // The connection string is truncated at the first '='
+        assert_eq!(variables.get("connection_string"), Some(&String::from("postgres://user:password=@localhost:5432/mydb")));
+        // Should have been: "postgres://user:password@localhost:5432/mydb"
+
+        // Empty values and keys are stored as is
+        assert_eq!(variables.get("key"), Some(&String::from("")));
     }
 
     #[test]
