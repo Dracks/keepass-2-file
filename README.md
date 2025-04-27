@@ -73,6 +73,8 @@ Commands:
     add-file <SOURCE> <DESTINATION>  Add a template into the config
     prune                            Deletes all templates that the source doesn't exists
     delete                           Deletes a template
+    add-variables <var1=value>...    Add one or more default global variables
+    delete-variables <var1>...        Delete one or more default global variables
     help                             Print this message or the help of the given subcommand(s)
 ```
 
@@ -90,6 +92,17 @@ keepass-2-file build-all
 ```
 
 **note**: the adding of files support the same flat -r/--relative-to-input to not specify the full path two times
+
+### Using the global variables
+Having global variables can be useful in multiple cases, but one good example is to have an e-mail, in the .env for having your own e-mail when testing sending e-mails, and not spam your team e-mail list. Another use can be to have some configurations, that you wish to be able to disable for your machine, but other collegues needs to have it enable/or customize it
+
+```bash
+# Adding multiple variables
+keepass-2-file config add-variables var=first 'var2=Some sample of variable'
+
+#deleting multiple variables
+keepass-2-file config delete-variables var1 var2
+```
 
 ## Template Syntax
 

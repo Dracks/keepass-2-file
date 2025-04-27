@@ -93,4 +93,19 @@ pub enum ConfigCommands {
         #[command(subcommand)]
         template: NameOrPath,
     },
+
+    /// List default variables in the config
+    ListVariables,
+
+    /// Add a default variable
+    AddVariables {
+        #[arg(num_args=1.., help="Variables defined as var=value, when existing will be overwrited")]
+        variables: Vec<String>,
+    },
+
+    /// Delete a variable variable
+    DeleteVariables {
+        #[arg(num_args=1..)]
+        variables: Vec<String>,
+    },
 }
