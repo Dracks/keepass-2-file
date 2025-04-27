@@ -9,8 +9,10 @@ pub mod tests {
 
     impl TestConfig {
         fn write_config(&self, content: String) {
-            std::fs::create_dir_all("test_resources/tmp").unwrap();
-            std::fs::write(self.config_file.clone(), content).unwrap();
+            std::fs::create_dir_all("test_resources/tmp")
+                .expect("Unable to create temporary test_resources/tmp directory");
+            std::fs::write(&self.config_file, content)
+                .expect("Unable to write temporary configuration file");
         }
 
         pub fn get_file_path(&self) -> String {
@@ -18,8 +20,8 @@ pub mod tests {
         }
 
         pub fn get(&self) -> GlobalConfig {
-            let config = GlobalConfig::new(self.config_file.as_str());
-            return config.unwrap();
+            GlobalConfig::new(&self.config_file)
++        .expect("Failed to load temp config created by TestConfig")
         }
 
         #[allow(dead_code)]

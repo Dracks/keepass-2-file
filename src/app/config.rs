@@ -83,7 +83,6 @@ impl YamlConfig {
     }
 
     pub fn get_vars(&self) -> HashMap<String, String> {
-        println!("{:?}", self.variables);
         self.variables.clone().unwrap_or_default()
     }
 

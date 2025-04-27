@@ -101,7 +101,7 @@ Having global variables can be useful in multiple cases, but one good example is
 keepass-2-file config add-variables var=first 'var2=Some sample of variable'
 
 #deleting multiple variables
-keepass-2-file config var1 var2
+keepass-2-file config delete-variables var1 var2
 ```
 
 ## Template Syntax
