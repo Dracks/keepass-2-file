@@ -31,26 +31,10 @@ pub enum Commands {
 
         #[arg(short, long, help = "Overwrite the glogal keepass file")]
         keepass: Option<String>,
-
-        #[arg(
-            short,
-            long,
-            value_name = "Keepass Password",
-            help = "It will use this password and not ask it"
-        )]
-        password: Option<String>,
     },
 
     /// Build all the templates in the configuration
-    BuildAll {
-        #[arg(
-            short,
-            long,
-            value_name = "Keepass Password",
-            help = "It will use this password and not ask it"
-        )]
-        password: Option<String>,
-    },
+    BuildAll {},
 }
 
 #[derive(Debug, Subcommand)]
