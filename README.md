@@ -17,7 +17,11 @@ A command-line tool to generate environment files using KeePass databases as a s
 
 ### From brew
 ```bash
+# will download and build it from code installing rust if necessary
 brew install dracks/homebrew-dracks/keepass-2-file
+
+# Will download the binary from the release
+brew install dracks/homebrew-dracks/keepass-2-file-bin
 ```
 
 ### From the source code
