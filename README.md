@@ -53,8 +53,11 @@ keepass-2-file build template.env.hbs .env
 # Using relative output path, will generate the file in /some-project/envs/aws.env
 keepass-2-file build /some-project/devops/aws.env.hbs --relative-to-input ../envs/aws.env
 
-# delete the template with name template-name on the non-global config specified
+# Delete the template with name template-name on the non-global config specified
 keepass-2-file --config non/global/config/file.yaml config delete name template-name
+
+# Build some .env overwriting or adding multiple variables
+keepass-2-file build -v "email=j@k.com" -v "other=daleks in manhattam" file.env.example .env
 ```
 
 ### Build Command Options
@@ -147,6 +150,9 @@ DB_PASSWORD={{keepass "PostgreSQL"}}
 
 # API Keys
 API_KEY={{stringify (keepass "APIs" "ExternalService")}}
+
+# Using a local variable
+EMAIL={{stringify email}}
 ```
 
 ## Configuration

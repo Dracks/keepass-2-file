@@ -1,1 +1,2 @@
 SOMETHING="{{something}}"
+EMAIL={{stringify email}}

@@ -65,6 +65,9 @@ templates:
 - template_path: {current_path_display}/test_resources/.env.example
   output_path: {current_path_display}/test_resources/tmp/.env
   name: valid
+- template_path: {current_path_display}/test_resources/with_variables
+  output_path: {current_path_display}/test_resources/tmp/with_variables
+  name: valid
 variables:
     something: is a variable
     email: j@k.com

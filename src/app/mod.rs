@@ -14,6 +14,12 @@ pub mod config;
 pub mod handlebars;
 mod test_helpers;
 
+pub trait IOLogs {
+    fn log(&self, str: String);
+    fn read(&self, str: String, secure: bool) -> std::io::Result<String>;
+    fn error(&self, str: String);
+}
+
 fn join_relative(current: &Path, file: String) -> PathBuf {
     if let Some(without_rel_path) = file.strip_prefix("./") {
         join_relative(current, String::from(without_rel_path))
@@ -85,10 +91,25 @@ fn render_and_save_template(
     Ok(())
 }
 
-pub trait IOLogs {
-    fn log(&self, str: String);
-    fn read(&self, str: String, secure: bool) -> std::io::Result<String>;
-    fn error(&self, str: String);
+fn parse_variables(io: &dyn IOLogs, variables: Vec<String>) -> HashMap<String, String> {
+    let mut parsed_variables: HashMap<String, String> = HashMap::new();
+    for variable in variables {
+        if let Some((key, value)) = variable.split_once('=') {
+            let key = key.trim();
+            if !key.is_empty() {
+                parsed_variables.insert(key.to_string(), value.to_string());
+            } else {
+                io.error(format!(
+                    "Malformed variable: \"{variable}\": variable name cannot be empty"
+                ));
+            }
+        } else {
+            io.error(format!(
+                "Malformed variable \"{variable}\": please use var=content"
+            ));
+        }
+    }
+    parsed_variables
 }
 
 pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
@@ -105,127 +126,118 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
     let mut config = GlobalConfig::new(&config_path)?;
 
     match args.command {
-        Commands::Config(config_command) => {
-            match config_command {
-                ConfigCommands::SetDefaultKpDb { url } => {
-                    io.log(format!("Setting default KeePass DB URL: {:?}", url));
-                    config.config.keepass = Some(url);
-                    config.save()?;
-                }
-                ConfigCommands::GetKpDb => match config.config.keepass {
-                    Some(url) => io.log(format!("Current file is {}", url)),
-                    None => io.log(format!(
-                        "The current configuration '{}' doesn't contain a default keepass db",
-                        config.get_file()
-                    )),
-                },
-                ConfigCommands::ListFiles => {
-                    let templates = config.config.get_templates();
-                    if templates.is_empty() {
-                        io.log(String::from("No templates defined"));
-                    } else {
-                        io.log(String::from("Configured templates:"));
-                        for template in templates {
-                            io.log(format!(
-                                "\t {} -> {}",
-                                template.template_path, template.output_path
-                            ));
-                        }
-                    }
-                }
-                ConfigCommands::AddFile {
-                    name,
-                    template,
-                    output,
-                    relative_to_input,
-                } => {
-                    let output_path = get_output_path(&template, output, relative_to_input);
-                    config.config.add_template(
-                        name,
-                        get_absolute_path(template),
-                        get_absolute_path(output_path),
-                    );
-                    config.save()?;
-                }
-                ConfigCommands::Prune => {
-                    let templates = config.config.get_templates();
+        Commands::Config(config_command) => match config_command {
+            ConfigCommands::SetDefaultKpDb { url } => {
+                io.log(format!("Setting default KeePass DB URL: {:?}", url));
+                config.config.keepass = Some(url);
+                config.save()?;
+            }
+            ConfigCommands::GetKpDb => match config.config.keepass {
+                Some(url) => io.log(format!("Current file is {}", url)),
+                None => io.log(format!(
+                    "The current configuration '{}' doesn't contain a default keepass db",
+                    config.get_file()
+                )),
+            },
+            ConfigCommands::ListFiles => {
+                let templates = config.config.get_templates();
+                if templates.is_empty() {
+                    io.log(String::from("No templates defined"));
+                } else {
+                    io.log(String::from("Configured templates:"));
                     for template in templates {
-                        io.log(format!("{:?}", template));
-                        if !Path::new(&template.template_path).exists() {
-                            io.log(format!(
-                                "Template {} does not exist, removing from config",
-                                template.template_path
-                            ));
-                            config
-                                .config
-                                .delete_template(template.template_path, template.output_path);
-                        }
+                        io.log(format!(
+                            "\t {} -> {}",
+                            template.template_path, template.output_path
+                        ));
                     }
-                    config.save()?;
-                }
-                ConfigCommands::Delete { template } => {
-                    match template {
-                        NameOrPath::Name { name } => {
-                            config.config.delete_templates(name);
-                        }
-                        NameOrPath::Paths { path, output } => {
-                            config.config.delete_template(path, output);
-                        }
-                    }
-                    config.save()?;
-                }
-                ConfigCommands::ListVariables => {
-                    let variables = config.config.get_vars();
-                    if variables.is_empty() {
-                        io.log(String::from("No variables defined"));
-                    } else {
-                        io.log(String::from("Variables:"));
-                        let mut sorted_keys: Vec<&String> = variables.keys().collect();
-                        sorted_keys.sort();
-                        for key in sorted_keys {
-                            io.log(format!(
-                                "\t{} = {}",
-                                key,
-                                variables
-                                    .get(key)
-                                    .expect("Loading a key that should be there")
-                            ));
-                        }
-                    }
-                }
-                ConfigCommands::AddVariables { variables } => {
-                    for variable in variables {
-                        if let Some((key, value)) = variable.split_once('=') {
-                            if !key.is_empty() {
-                                config.config.add_var(key.to_string(), value.to_string());
-                            } else {
-                                io.error(format!("Malformed variable: \"{variable}\": variable name cannot be empty"));
-                            }
-                        } else {
-                            io.error(format!(
-                                "Malformed variable \"{variable}\": please use var=content"
-                            ));
-                        }
-                    }
-                    config.save()?;
-                }
-                ConfigCommands::DeleteVariables { variables } => {
-                    for variable in variables {
-                        config.config.del_var(variable.to_string());
-                    }
-                    config.save()?;
                 }
             }
-        }
+            ConfigCommands::AddFile {
+                name,
+                template,
+                output,
+                relative_to_input,
+            } => {
+                let output_path = get_output_path(&template, output, relative_to_input);
+                config.config.add_template(
+                    name,
+                    get_absolute_path(template),
+                    get_absolute_path(output_path),
+                );
+                config.save()?;
+            }
+            ConfigCommands::Prune => {
+                let templates = config.config.get_templates();
+                for template in templates {
+                    io.log(format!("{:?}", template));
+                    if !Path::new(&template.template_path).exists() {
+                        io.log(format!(
+                            "Template {} does not exist, removing from config",
+                            template.template_path
+                        ));
+                        config
+                            .config
+                            .delete_template(template.template_path, template.output_path);
+                    }
+                }
+                config.save()?;
+            }
+            ConfigCommands::Delete { template } => {
+                match template {
+                    NameOrPath::Name { name } => {
+                        config.config.delete_templates(name);
+                    }
+                    NameOrPath::Paths { path, output } => {
+                        config.config.delete_template(path, output);
+                    }
+                }
+                config.save()?;
+            }
+            ConfigCommands::ListVariables => {
+                let variables = config.config.get_vars();
+                if variables.is_empty() {
+                    io.log(String::from("No variables defined"));
+                } else {
+                    io.log(String::from("Variables:"));
+                    let mut sorted_keys: Vec<&String> = variables.keys().collect();
+                    sorted_keys.sort();
+                    for key in sorted_keys {
+                        io.log(format!(
+                            "\t{} = {}",
+                            key,
+                            variables
+                                .get(key)
+                                .expect("Loading a key that should be there")
+                        ));
+                    }
+                }
+            }
+            ConfigCommands::AddVariables { variables } => {
+                let vars_hash = parse_variables(io, variables);
+                for (key, value) in vars_hash {
+                    config.config.add_var(key, value);
+                }
+                config.save()?;
+            }
+            ConfigCommands::DeleteVariables { variables } => {
+                for variable in variables {
+                    config.config.del_var(variable.to_string());
+                }
+                config.save()?;
+            }
+        },
         Commands::Build {
             template,
             keepass,
             output,
             relative_to_input,
+            vars,
         } => {
             io.log(format!("Building template file: {}", template));
             io.log(format!("KeePass file: {:?}", keepass));
-            let variables = config.config.get_vars();
+            let mut variables = config.config.get_vars();
+            variables.extend(parse_variables(io, vars));
 
             let keepass = match keepass {
                 Some(url) => url,
@@ -254,8 +266,10 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                 &variables,
             )?;
         }
-        Commands::BuildAll {} => {
-            let variables = config.config.get_vars();
+        Commands::BuildAll { vars } => {
+            let mut variables = config.config.get_vars();
+            variables.extend(parse_variables(io, vars));
+
             let files = config.config.get_templates();
             let keepass = match config.config.keepass {
                 Some(url) => url,
@@ -499,6 +513,7 @@ mod tests {
                     relative_to_input: false,
                     output: String::from("test_outputs/file-with-error"),
                     keepass: Some(String::from("test_resources/test_db.kdbx")),
+                    vars: Vec::new(),
                 },
                 config: None,
             },
@@ -563,7 +578,7 @@ mod tests {
         let result = execute(
             Cli {
                 config: Some(String::from(test.get_file_path())),
-                command: Commands::BuildAll {},
+                command: Commands::BuildAll { vars: Vec::new() },
             },
             &io,
         );
@@ -642,7 +657,7 @@ mod tests {
         assert_eq!(variables.get("email"), Some(&String::from("j@k.com")));
 
         let templates = test.get().config.get_templates();
-        assert_eq!(templates.len(), 1);
+        assert_eq!(templates.len(), 2);
         assert_eq!(templates[0].name, Some(String::from("valid")));
     }
 
@@ -699,6 +714,7 @@ mod tests {
                     output: String::from("./test_resources/tmp/with_variables"),
                     keepass: None,
                     relative_to_input: false,
+                    vars: Vec::from([String::from("email=j@k2.com")]),
                 },
             },
             &io,
@@ -708,6 +724,30 @@ mod tests {
 
         let output_file_path = String::from("test_resources/tmp/with_variables");
         let file_contents = std::fs::read_to_string(output_file_path).unwrap();
-        assert_eq!(file_contents.trim(), "SOMETHING=\"is a variable\"");
+        assert!(file_contents.contains("SOMETHING=\"is a variable\""));
+        assert!(file_contents.contains("EMAIL=\"j@k2.com\""));
+    }
+
+    #[test]
+    fn test_something_is_a_variable_build_all() {
+        let test = TestConfig::create_with_vars();
+        let mut io = IODebug::new();
+        io.add_stdin("MyTestPass".to_string());
+        let result = execute(
+            Cli {
+                config: Some(String::from(test.get_file_path())),
+                command: Commands::BuildAll {
+                    vars: Vec::from([String::from("email=j@k2.com")]),
+                },
+            },
+            &io,
+        );
+        println!("{:?}", result);
+        assert!(result.is_ok());
+
+        let output_file_path = String::from("test_resources/tmp/with_variables");
+        let file_contents = std::fs::read_to_string(output_file_path).unwrap();
+        assert!(file_contents.contains("SOMETHING=\"is a variable\""));
+        assert!(file_contents.contains("EMAIL=\"j@k2.com\""));
     }
 }

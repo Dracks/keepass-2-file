@@ -29,12 +29,18 @@ pub enum Commands {
 
         output: String,
 
-        #[arg(short, long, help = "Overwrite the glogal keepass file")]
+        #[arg(short, long, help = "Overwrite the global keepass file")]
         keepass: Option<String>,
+
+        #[arg(short, long, help = "Add or overwrite variables into the build")]
+        vars: Vec<String>,
     },
 
     /// Build all the templates in the configuration
-    BuildAll {},
+    BuildAll {
+        #[arg(short, long, help = "Add or overwrite variables into the build")]
+        vars: Vec<String>,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -92,4 +98,60 @@ pub enum ConfigCommands {
         #[arg(num_args=1..)]
         variables: Vec<String>,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cli_build_all_variables() {
+        let cli = Cli::parse_from([
+            "kp2f",
+            "build-all",
+            "-v",
+            "email=something",
+            "-v",
+            "email2=j@k.com",
+        ]);
+
+        assert!(
+            matches!(cli.command, Commands::BuildAll { vars } if vars == Vec::from(["email=something".to_string(), "email2=j@k.com".to_string()]))
+        );
+    }
+
+    #[test]
+    fn test_cli_build_variables() {
+        let cli = Cli::parse_from([
+            "kp2f",
+            "build",
+            "file.env.example",
+            "-r",
+            ".env",
+            "-v",
+            "email=something",
+            "-v",
+            "email2=j@k.com",
+        ]);
+
+        match cli.command {
+            Commands::Build {
+                template,
+                relative_to_input,
+                output,
+                keepass,
+                vars,
+            } => {
+                assert_eq!(
+                    vars,
+                    Vec::from(["email=something".to_string(), "email2=j@k.com".to_string()])
+                );
+                assert_eq!(output, ".env");
+                assert_eq!(relative_to_input, true);
+                assert_eq!(template, "file.env.example");
+                assert_eq!(keepass, None);
+            }
+            _ => assert!(false),
+        }
+    }
 }
