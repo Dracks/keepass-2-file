@@ -29,16 +29,16 @@ pub enum Commands {
 
         output: String,
 
-        #[arg(short, long, help = "Overwrite the glogal keepass file")]
+        #[arg(short, long, help = "Overwrite the global keepass file")]
         keepass: Option<String>,
 
-        #[arg(short, long, help= "Add or overwrite variables into the build")]
+        #[arg(short, long, help = "Add or overwrite variables into the build")]
         vars: Vec<String>,
     },
 
     /// Build all the templates in the configuration
     BuildAll {
-        #[arg(short, long, help= "Add or overwrite variables into the build")]
+        #[arg(short, long, help = "Add or overwrite variables into the build")]
         vars: Vec<String>,
     },
 }
