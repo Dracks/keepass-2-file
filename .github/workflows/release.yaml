@@ -44,7 +44,13 @@ jobs:
 
       - name: Get the release version from the package
         shell: bash
-        run: echo "VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')" >> $GITHUB_ENV
+        run: echo "VERSION=v$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')" >> $GITHUB_ENV
+
+      - name: Bump version and push tag
+        uses: laputansoft/github-tag-action@v4.6
+        with:
+          github_token: ${{ env.github-token }}
+          tag: ${{ env.VERSION }}
 
       - name: Build
         uses: actions-rs/cargo@v1
