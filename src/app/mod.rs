@@ -14,6 +14,12 @@ pub mod config;
 pub mod handlebars;
 mod test_helpers;
 
+pub trait IOLogs {
+    fn log(&self, str: String);
+    fn read(&self, str: String, secure: bool) -> std::io::Result<String>;
+    fn error(&self, str: String);
+}
+
 fn join_relative(current: &Path, file: String) -> PathBuf {
     if let Some(without_rel_path) = file.strip_prefix("./") {
         join_relative(current, String::from(without_rel_path))
@@ -85,11 +91,24 @@ fn render_and_save_template(
     Ok(())
 }
 
-pub trait IOLogs {
-    fn log(&self, str: String);
-    fn read(&self, str: String, secure: bool) -> std::io::Result<String>;
-    fn error(&self, str: String);
+fn parse_variables(io: &dyn IOLogs, variables: Vec<String>) -> HashMap<String, String> {
+    let mut ret : HashMap<String, String> = HashMap::new();
+    for variable in variables {
+        if let Some((key, value)) = variable.split_once('=') {
+            if !key.is_empty() {
+                ret.insert(key.to_string(), value.to_string());
+            } else {
+                io.error(format!("Malformed variable: \"{variable}\": variable name cannot be empty"));
+            }
+        } else {
+            io.error(format!(
+                "Malformed variable \"{variable}\": please use var=content"
+            ));
+        }
+    }
+    ret
 }
+
 
 pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
     let home = dirs::home_dir()
@@ -194,18 +213,9 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                     }
                 }
                 ConfigCommands::AddVariables { variables } => {
-                    for variable in variables {
-                        if let Some((key, value)) = variable.split_once('=') {
-                            if !key.is_empty() {
-                                config.config.add_var(key.to_string(), value.to_string());
-                            } else {
-                                io.error(format!("Malformed variable: \"{variable}\": variable name cannot be empty"));
-                            }
-                        } else {
-                            io.error(format!(
-                                "Malformed variable \"{variable}\": please use var=content"
-                            ));
-                        }
+                    let vars_hash = parse_variables(io, variables);
+                    for (key, value) in vars_hash {
+                        config.config.add_var(key, value);
                     }
                     config.save()?;
                 }
@@ -222,10 +232,12 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
             keepass,
             output,
             relative_to_input,
+            vars,
         } => {
             io.log(format!("Building template file: {}", template));
             io.log(format!("KeePass file: {:?}", keepass));
-            let variables = config.config.get_vars();
+            let mut variables = config.config.get_vars();
+            variables.extend(parse_variables(io, vars));
 
             let keepass = match keepass {
                 Some(url) => url,
@@ -254,8 +266,10 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                 &variables,
             )?;
         }
-        Commands::BuildAll {} => {
-            let variables = config.config.get_vars();
+        Commands::BuildAll { vars } => {
+            let mut variables = config.config.get_vars();
+            variables.extend(parse_variables(io, vars));
+
             let files = config.config.get_templates();
             let keepass = match config.config.keepass {
                 Some(url) => url,
@@ -499,6 +513,7 @@ mod tests {
                     relative_to_input: false,
                     output: String::from("test_outputs/file-with-error"),
                     keepass: Some(String::from("test_resources/test_db.kdbx")),
+                    vars: Vec::new(),
                 },
                 config: None,
             },
@@ -563,7 +578,7 @@ mod tests {
         let result = execute(
             Cli {
                 config: Some(String::from(test.get_file_path())),
-                command: Commands::BuildAll {},
+                command: Commands::BuildAll { vars: Vec::new() },
             },
             &io,
         );
@@ -642,7 +657,7 @@ mod tests {
         assert_eq!(variables.get("email"), Some(&String::from("j@k.com")));
 
         let templates = test.get().config.get_templates();
-        assert_eq!(templates.len(), 1);
+        assert_eq!(templates.len(), 2);
         assert_eq!(templates[0].name, Some(String::from("valid")));
     }
 
@@ -699,6 +714,7 @@ mod tests {
                     output: String::from("./test_resources/tmp/with_variables"),
                     keepass: None,
                     relative_to_input: false,
+                    vars: Vec::from([String::from("email=j@k2.com")]),
                 },
             },
             &io,
@@ -708,6 +724,30 @@ mod tests {
 
         let output_file_path = String::from("test_resources/tmp/with_variables");
         let file_contents = std::fs::read_to_string(output_file_path).unwrap();
-        assert_eq!(file_contents.trim(), "SOMETHING=\"is a variable\"");
+        assert!(file_contents.contains("SOMETHING=\"is a variable\""));
+        assert!(file_contents.contains("EMAIL=\"j@k2.com\""));
+    }
+
+    #[test]
+    fn test_something_is_a_variable_build_all() {
+        let test = TestConfig::create_with_vars();
+        let mut io = IODebug::new();
+        io.add_stdin("MyTestPass".to_string());
+        let result = execute(
+            Cli {
+                config: Some(String::from(test.get_file_path())),
+                command: Commands::BuildAll {
+                    vars: Vec::from([String::from("email=j@k2.com")]),
+                },
+            },
+            &io,
+        );
+        println!("{:?}", result);
+        assert!(result.is_ok());
+
+        let output_file_path = String::from("test_resources/tmp/with_variables");
+        let file_contents = std::fs::read_to_string(output_file_path).unwrap();
+        assert!(file_contents.contains("SOMETHING=\"is a variable\""));
+        assert!(file_contents.contains("EMAIL=\"j@k2.com\""));
     }
 }
