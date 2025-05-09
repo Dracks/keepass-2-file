@@ -95,6 +95,7 @@ fn parse_variables(io: &dyn IOLogs, variables: Vec<String>) -> HashMap<String, S
     let mut parsed_variables: HashMap<String, String> = HashMap::new();
     for variable in variables {
         if let Some((key, value)) = variable.split_once('=') {
+            let key = key.trim();
             if !key.is_empty() {
                 parsed_variables.insert(key.to_string(), value.to_string());
             } else {
