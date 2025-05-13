@@ -42,10 +42,10 @@ cargo install --path .
 
 ```bash
 # Set default KeePass database
-keepass-2-file config set-default-kpdb /path/to/your.kdbx
+keepass-2-file config set-default-kp-db /path/to/your.kdbx
 
 # Get current KeePass database configuration
-keepass-2-file config get-kpdb
+keepass-2-file config get-kp-db
 
 # Generate environment file from template
 keepass-2-file build template.env.hbs .env
