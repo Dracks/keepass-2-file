@@ -141,7 +141,7 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                         ));
                     }
                 } else {
-                    io.error("The file path is not absolute. It must follow this format: /Users/username/**/*.kdbx".to_string());
+                    io.error("The file path is not absolute. It must follow this format: /Users/username/**/*.kdbx on Mac, or C:\\**\\*.kdbx on Windows".to_string());
                 }
             }
             ConfigCommands::GetKpDb => match config.config.keepass {
@@ -336,6 +336,8 @@ mod tests {
 
     use test_helpers::tests::{IODebug, TestConfig};
 
+    use std::fs;
+
     #[test]
     fn test_join_relative_basic() {
         let test_path = Path::new("/home/users/devel/");
@@ -392,11 +394,14 @@ mod tests {
     fn test_set_default_keepass_file() {
         let test = TestConfig::create();
         let io = IODebug::new();
+        let relative_path = Path::new("test_resources\\test_db.kdbx");
+        let absolute_path = fs::canonicalize(relative_path).unwrap();
+        let absolute_path_string = absolute_path.to_str().unwrap();
 
         let result = execute(
             Cli {
                 command: Commands::Config(ConfigCommands::SetDefaultKpDb {
-                    url: String::from("/path/to/test.kdbx"),
+                    url: String::from(absolute_path_string),
                 }),
                 config: Some(String::from(test.get_file_path())),
             },
@@ -408,13 +413,13 @@ mod tests {
         let config = test.get();
         assert_eq!(
             config.config.keepass,
-            Some(String::from("/path/to/test.kdbx"))
+            Some(String::from(absolute_path_string))
         );
 
         let logs = io.get_logs();
         assert_eq!(
             logs[0],
-            "Setting default KeePass DB URL: \"/path/to/test.kdbx\""
+            format!("Setting default KeePass DB URL: {:?}", absolute_path_string)
         );
     }
 
