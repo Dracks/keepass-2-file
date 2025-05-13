@@ -128,9 +128,14 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
     match args.command {
         Commands::Config(config_command) => match config_command {
             ConfigCommands::SetDefaultKpDb { url } => {
-                io.log(format!("Setting default KeePass DB URL: {:?}", url));
-                config.config.keepass = Some(url);
-                config.save()?;
+                let path = Path::new(&url);
+                if path.exists() {
+                    io.log(format!("Setting default KeePass DB URL: {:?}", url));
+                    config.config.keepass = Some(url);
+                    config.save()?;
+                } else {
+                    io.log(format!("The following file doesn't exist or it can't be accessed: {:?}", url));
+                }
             }
             ConfigCommands::GetKpDb => match config.config.keepass {
                 Some(url) => io.log(format!("Current file is {}", url)),
