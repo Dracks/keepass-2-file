@@ -129,13 +129,16 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
         Commands::Config(config_command) => match config_command {
             ConfigCommands::SetDefaultKpDb { url } => {
                 let path = Path::new(&url);
-                if path.is_absolute(){
+                if path.is_absolute() {
                     if path.exists() {
                         io.log(format!("Setting default KeePass DB URL: {:?}", url));
                         config.config.keepass = Some(url);
                         config.save()?;
                     } else {
-                        io.error(format!("The following file doesn't exist or it can't be accessed: {:?}", url));
+                        io.error(format!(
+                            "The following file doesn't exist or it can't be accessed: {:?}",
+                            url
+                        ));
                     }
                 } else {
                     io.error("The file path is not absolute. It must follow this format: /Users/username/**/*.kdbx".to_string());
