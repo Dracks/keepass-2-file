@@ -394,7 +394,7 @@ mod tests {
     fn test_set_default_keepass_file() {
         let test = TestConfig::create();
         let io = IODebug::new();
-        let relative_path = Path::new("test_resources\\test_db.kdbx");
+        let relative_path = Path::new("test_resources/test_db.kdbx");
         let absolute_path = fs::canonicalize(relative_path).unwrap();
         let absolute_path_string = absolute_path.to_str().unwrap();
 
