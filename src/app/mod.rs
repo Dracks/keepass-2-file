@@ -34,19 +34,19 @@ impl ErrorCode {
                 field,
                 path.join("/")
             )),
-            ErrorCode::MissingPassword(path) => {
+            ErrorCode::NoPassword(path) => {
                 io.error(format!(
                     "Entry doesn't contain a password: {}",
                     path.join("/")
                 ));
             }
-            ErrorCode::MissingUsername(path) => {
+            ErrorCode::NoUsername(path) => {
                 io.error(format!(
                     "Entry doesn't contain an username: {}",
                     path.join("/")
                 ));
             }
-            ErrorCode::MissingUrl(path) => {
+            ErrorCode::NoUrl(path) => {
                 io.error(format!("Entry doesn't contain an url: {}", path.join("/")));
             }
         }
@@ -371,13 +371,10 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                 }
                 let errors = errors_and_warnings.get_errors();
                 if !errors.is_empty() {
-                    io.error(
-                        format!(
-                            "There were some errors processing {}:",
-                            template.template_path
-                        )
-                        .into(),
-                    );
+                    io.error(format!(
+                        "There were some errors processing {}:",
+                        template.template_path
+                    ));
                     for error in errors {
                         error.to_io_logs(io);
                     }

@@ -69,12 +69,12 @@ impl ErrorCode {
     fn to_hb_entry(&self) -> String {
         match self {
             ErrorCode::MissingEntry(_) => NOT_FOUND_ERROR.into(),
-            ErrorCode::MissingField(_, field_name) => ATTRIBUTE_NOT_FOUND_ERROR
-                .replace("{field-name}", field_name.as_str())
-                .into(),
-            ErrorCode::MissingPassword(_) => NO_PASSWORD_ERROR.into(),
-            ErrorCode::MissingUsername(_) => NO_USERNAME_ERROR.into(),
-            ErrorCode::MissingUrl(_) => NO_URL_ERROR.into(),
+            ErrorCode::MissingField(_, field_name) => {
+                ATTRIBUTE_NOT_FOUND_ERROR.replace("{field-name}", field_name.as_str())
+            }
+            ErrorCode::NoPassword(_) => NO_PASSWORD_ERROR.into(),
+            ErrorCode::NoUsername(_) => NO_USERNAME_ERROR.into(),
+            ErrorCode::NoUrl(_) => NO_URL_ERROR.into(),
         }
     }
 }
@@ -88,15 +88,15 @@ impl KeepassHelper<'_> {
                 NodeRef::Entry(entry) => match field {
                     FieldSelect::Password => match entry.get_password() {
                         Some(pwd) => Ok(pwd.into()),
-                        None => Err(ErrorCode::MissingPassword(path_str)),
+                        None => Err(ErrorCode::NoPassword(path_str)),
                     },
                     FieldSelect::Username => match entry.get_username() {
                         Some(username) => Ok(username.into()),
-                        None => Err(ErrorCode::MissingUsername(path_str)),
+                        None => Err(ErrorCode::NoUsername(path_str)),
                     },
                     FieldSelect::Url => match entry.get_url() {
                         Some(url) => Ok(url.into()),
-                        None => Err(ErrorCode::MissingUrl(path_str)),
+                        None => Err(ErrorCode::NoUrl(path_str)),
                     },
                     FieldSelect::AdditionalAttributes { field_name } => {
                         let result = get_additional_fields(entry, field_name.clone());
@@ -144,7 +144,7 @@ handlebars_helper!(stringify: |x: String| {
     format!("\"{}\"", x.replace('\"', "\\\"").replace('$', "\\$"))
 });
 
-pub fn build_handlebars<'reg>(db: Database, errors: &'reg dyn ErrorRecord) -> Handlebars<'reg> {
+pub fn build_handlebars(db: Database, errors: &dyn ErrorRecord) -> Handlebars<'_> {
     let mut handlebars = Handlebars::new();
 
     handlebars.register_escape_fn(no_escape);

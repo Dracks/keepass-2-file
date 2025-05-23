@@ -8,9 +8,9 @@ pub trait ErrorRecord: Send + Sync {
 pub enum ErrorCode {
     MissingEntry(Vec<String>),
     MissingField(Vec<String>, String),
-    MissingPassword(Vec<String>),
-    MissingUsername(Vec<String>),
-    MissingUrl(Vec<String>),
+    NoPassword(Vec<String>),
+    NoUsername(Vec<String>),
+    NoUrl(Vec<String>),
 }
 
 #[derive(Clone)]
