@@ -76,6 +76,28 @@ variables:
             TestConfig::create_config(Some(test_config))
         }
 
+        #[allow(dead_code)]
+        pub fn create_with_errors() -> TestConfig {
+            let current_path = std::env::current_dir().unwrap();
+            let current_path_display = current_path.display();
+
+            let test_config = format!(
+                "keepass: {current_path_display}/test_resources/test_db.kdbx
+templates:
+- template_path: {current_path_display}/test_resources/0-with-errors
+  output_path: {current_path_display}/test_resources/tmp/0.env
+- template_path: {current_path_display}/test_resources/1-with-other-errors
+  output_path: {current_path_display}/test_resources/tmp/1.env
+- template_path: {current_path_display}/test_resources/.env.example
+  output_path: {current_path_display}/test_resources/tmp/ok.env
+variables:
+    something: is a variable
+    email: j@k.com
+        "
+            );
+            TestConfig::create_config(Some(test_config))
+        }
+
         pub fn create_empty_file() -> TestConfig {
             TestConfig::create_config(None)
         }
@@ -118,6 +140,10 @@ variables:
 
         pub fn get_logs(&self) -> Vec<String> {
             self.stdouts.borrow().clone()
+        }
+
+        pub fn get_errors(&self) -> Vec<String>{
+            self.stderrs.borrow().clone()
         }
     }
 

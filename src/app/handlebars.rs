@@ -7,10 +7,14 @@ use keepass::{
     Database,
 };
 
+use super::errors_and_warnings::{ErrorCode, ErrorRecord};
+use super::tools::convert_vecs;
+
 pub type LibHandlebars<'reg> = Handlebars<'reg>;
 
-pub struct KeepassHelper {
+pub struct KeepassHelper<'a> {
     db: Database,
+    errors: &'a dyn ErrorRecord,
 }
 
 const NOT_FOUND_ERROR: &str = "<Not found keepass entry>";
@@ -43,7 +47,6 @@ fn extract_field_value(field_path: Option<&PathAndJson>) -> Option<String> {
 
 fn extract_field_type(field_path: Option<&PathAndJson>) -> FieldSelect {
     if let Some(field) = extract_field_value(field_path) {
-        // println!("{}", field);
         return match field.to_lowercase().as_str() {
             "username" => FieldSelect::Username,
             "password" => FieldSelect::Password,
@@ -54,16 +57,66 @@ fn extract_field_type(field_path: Option<&PathAndJson>) -> FieldSelect {
     FieldSelect::Password
 }
 
-fn get_additional_fields(entry: &Entry, field_name: String) -> String {
+fn get_additional_fields(entry: &Entry, field_name: String) -> Option<String> {
     let contents = entry.get(field_name.as_str());
     if let Some(contents) = contents {
-        return contents.to_string();
+        return Some(contents.to_string());
     }
-
-    ATTRIBUTE_NOT_FOUND_ERROR.replace("{field-name}", field_name.as_str())
+    None
 }
 
-impl HelperDef for KeepassHelper {
+impl ErrorCode {
+    fn to_hb_entry(&self) -> String {
+        match self {
+            ErrorCode::MissingEntry(_) => NOT_FOUND_ERROR.into(),
+            ErrorCode::MissingField(_, field_name) => ATTRIBUTE_NOT_FOUND_ERROR
+                .replace("{field-name}", field_name.as_str())
+                .into(),
+            ErrorCode::MissingPassword(_) => NO_PASSWORD_ERROR.into(),
+            ErrorCode::MissingUsername(_) => NO_USERNAME_ERROR.into(),
+            ErrorCode::MissingUrl(_) => NO_URL_ERROR.into(),
+        }
+    }
+}
+
+impl KeepassHelper<'_> {
+    fn extract_entry(&self, path: Vec<&str>, field: FieldSelect) -> Result<String, ErrorCode> {
+        let path_str: Vec<String> = convert_vecs(path.clone());
+        if let Some(node) = self.db.root.get(&path) {
+            match node {
+                NodeRef::Group(_) => Err(ErrorCode::MissingEntry(path_str)),
+                NodeRef::Entry(entry) => match field {
+                    FieldSelect::Password => match entry.get_password() {
+                        Some(pwd) => Ok(pwd.into()),
+                        None => Err(ErrorCode::MissingPassword(path_str)),
+                    },
+                    FieldSelect::Username => match entry.get_username() {
+                        Some(username) => Ok(username.into()),
+                        None => Err(ErrorCode::MissingUsername(path_str)),
+                    },
+                    FieldSelect::Url => match entry.get_url() {
+                        Some(url) => Ok(url.into()),
+                        None => Err(ErrorCode::MissingUrl(path_str)),
+                    },
+                    FieldSelect::AdditionalAttributes { field_name } => {
+                        let result = get_additional_fields(entry, field_name.clone());
+                        match result {
+                            Some(d2) => Ok(d2),
+                            None => Err(ErrorCode::MissingField(
+                                convert_vecs(path),
+                                field_name.clone(),
+                            )),
+                        }
+                    }
+                },
+            }
+        } else {
+            Err(ErrorCode::MissingEntry(convert_vecs(path)))
+        }
+    }
+}
+
+impl HelperDef for KeepassHelper<'_> {
     fn call_inner<'reg: 'rc, 'rc>(
         &self,
         h: &Helper<'rc>,
@@ -78,33 +131,14 @@ impl HelperDef for KeepassHelper {
             .collect::<Vec<String>>();
         let path = args.iter().map(|x| x.as_str()).collect::<Vec<&str>>();
         let field = extract_field_type(h.hash_get("field"));
-        // println!("{:?}", h);
-        // println!("{:?}", args);
-        if let Some(node) = self.db.root.get(&path) {
-            match node {
-                NodeRef::Group(_) => Ok(ScopedJson::Derived(JsonValue::from(NOT_FOUND_ERROR))),
-                NodeRef::Entry(entry) => {
-                    let data: String;
-                    let content = match field {
-                        FieldSelect::Password => entry
-                            .get_password()
-                            .map_or_else(|| NO_PASSWORD_ERROR, |content| content),
-                        FieldSelect::Username => entry
-                            .get_username()
-                            .map_or_else(|| NO_USERNAME_ERROR, |content| content),
-                        FieldSelect::Url => entry
-                            .get_url()
-                            .map_or_else(|| NO_URL_ERROR, |content| content),
-                        FieldSelect::AdditionalAttributes { field_name } => {
-                            data = get_additional_fields(entry, field_name);
-                            data.as_str()
-                        }
-                    };
-                    Ok(ScopedJson::from(JsonValue::from(content)))
-                }
+        match self.extract_entry(path, field) {
+            Ok(content) => Ok(ScopedJson::from(JsonValue::from(content))),
+            Err(error_code) => {
+                self.errors.register_error(error_code.clone());
+                Ok(ScopedJson::Derived(JsonValue::from(
+                    error_code.to_hb_entry(),
+                )))
             }
-        } else {
-            Ok(ScopedJson::Derived(JsonValue::from(NOT_FOUND_ERROR)))
         }
     }
 }
@@ -113,11 +147,11 @@ handlebars_helper!(stringify: |x: String| {
     format!("\"{}\"", x.replace('\"', "\\\"").replace('$', "\\$"))
 });
 
-pub fn build_handlebars<'reg>(db: Database) -> Handlebars<'reg> {
+pub fn build_handlebars<'reg>(db: Database, errors: &'reg dyn ErrorRecord) -> Handlebars<'reg> {
     let mut handlebars = Handlebars::new();
 
     handlebars.register_escape_fn(no_escape);
-    handlebars.register_helper("keepass", Box::new(KeepassHelper { db }));
+    handlebars.register_helper("keepass", Box::new(KeepassHelper { db, errors }));
     handlebars.register_helper("stringify", Box::new(stringify));
 
     handlebars
@@ -125,6 +159,8 @@ pub fn build_handlebars<'reg>(db: Database) -> Handlebars<'reg> {
 
 #[cfg(test)]
 mod tests {
+    use crate::app::errors_and_warnings::HelperErrors;
+
     use super::*;
 
     fn get_db() -> Database {
@@ -139,7 +175,8 @@ mod tests {
 
     #[test]
     fn test_handlebars_keepass_variables() {
-        let handlebars = build_handlebars(get_db());
+        let errors_and_warnings = HelperErrors::new();
+        let handlebars = build_handlebars(get_db(), &errors_and_warnings);
 
         let template =
             "VAR_NAME=\"My name\"\nVAR_SECRET=\"{{keepass \"group1\" \"Some weird name\"}}\"";
@@ -153,7 +190,8 @@ mod tests {
 
     #[test]
     fn test_handlebars_keepass_with_string_that_needs_encoding() {
-        let handlebars = build_handlebars(get_db());
+        let errors_and_warnings = HelperErrors::new();
+        let handlebars = build_handlebars(get_db(), &errors_and_warnings);
 
         let template = "VAR_NAME=\"My name\"\nVAR_SECRET={{stringify (keepass \"test1\")}}\"";
 
@@ -167,20 +205,27 @@ mod tests {
 
     #[test]
     fn test_handlebars_keepass_unknown_variable() {
-        let handlebars = build_handlebars(get_db());
+        let errors_and_warnings = HelperErrors::new();
+        {
+            let handlebars = build_handlebars(get_db(), &errors_and_warnings);
 
-        let template = "VAR_SECRET=\"{{keepass \"not-found-group\"}}\"";
+            let template = "VAR_SECRET=\"{{keepass \"not-found-group\"}}\"";
 
-        let result = handlebars.render_template(template, &());
-        assert!(result.is_ok());
+            let result = handlebars.render_template(template, &());
+            assert!(result.is_ok());
 
-        let rendered = result.unwrap();
-        assert!(rendered.contains("VAR_SECRET=\"<Not found keepass entry>\""));
+            let rendered = result.unwrap();
+            assert!(rendered.contains("VAR_SECRET=\"<Not found keepass entry>\""));
+        }
+        let errors = errors_and_warnings.get_errors();
+        println!("{:?}", errors);
+        assert_eq!(errors.len(), 1)
     }
 
     #[test]
     fn test_handlebars_keepass_retrieve_username() {
-        let handlebars = build_handlebars(get_db());
+        let errors_and_warnings = HelperErrors::new();
+        let handlebars = build_handlebars(get_db(), &errors_and_warnings);
 
         let template = "VAR_SECRET=\"{{keepass field=username \"test1\"}}\"";
 
@@ -194,7 +239,8 @@ mod tests {
 
     #[test]
     fn test_handlebars_keepass_retrieve_other_fields() {
-        let handlebars = build_handlebars(get_db());
+        let errors_and_warnings = HelperErrors::new();
+        let handlebars = build_handlebars(get_db(), &errors_and_warnings);
 
         let template = "URL=\"{{keepass field=url \"complex\"}}\"
             ADDITIONAL=\"{{keepass field=attribute-1 \"complex\"}}\"
@@ -213,21 +259,27 @@ mod tests {
 
     #[test]
     fn test_handlebars_keepass_missing_fields() {
-        let handlebars = build_handlebars(get_db());
+        let errors_and_warnings = HelperErrors::new();
+        {
+            let handlebars = build_handlebars(get_db(), &errors_and_warnings);
 
-        let template = "PASSWORD=\"{{keepass \"missing\"}}\"
-            USERNAME=\"{{keepass field=username \"missing\"}}\"
-            URL=\"{{keepass field=url \"missing\"}}\"
-            ATTRIBUTE=\"{{keepass field=missing \"missing\"}}\"
-        ";
+            let template = "PASSWORD=\"{{keepass \"missing\"}}\"
+                USERNAME=\"{{keepass field=username \"missing\"}}\"
+                URL=\"{{keepass field=url \"missing\"}}\"
+                ATTRIBUTE=\"{{keepass field=missing \"missing\"}}\"
+            ";
 
-        let result = handlebars.render_template(template, &());
-        assert!(result.is_ok());
+            let result = handlebars.render_template(template, &());
+            assert!(result.is_ok());
 
-        let rendered = result.unwrap();
-        assert!(rendered.contains("PASSWORD=\"<No password found in entry>\""));
-        assert!(rendered.contains("USERNAME=\"<No username found in entry>\""));
-        assert!(rendered.contains("URL=\"<No URL found in entry>\""));
-        assert!(rendered.contains("ATTRIBUTE=\"<Attribute (missing) not found in entry>\""));
+            let rendered = result.unwrap();
+            assert!(rendered.contains("PASSWORD=\"<No password found in entry>\""));
+            assert!(rendered.contains("USERNAME=\"<No username found in entry>\""));
+            assert!(rendered.contains("URL=\"<No URL found in entry>\""));
+            assert!(rendered.contains("ATTRIBUTE=\"<Attribute (missing) not found in entry>\""));
+        }
+        let errors = errors_and_warnings.get_errors();
+        println!("{:?}", errors);
+        assert_eq!(errors.len(), 4)
     }
 }
