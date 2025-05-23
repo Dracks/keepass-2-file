@@ -1,5 +1,6 @@
 use commands::{Cli, Commands, ConfigCommands, NameOrPath};
 use config::GlobalConfig;
+use errors_and_warnings::{ErrorCode, HelperErrors};
 use handlebars::{build_handlebars, LibHandlebars};
 use keepass::{Database, DatabaseKey};
 use std::{
@@ -11,8 +12,10 @@ use std::{
 
 pub mod commands;
 pub mod config;
+mod errors_and_warnings;
 pub mod handlebars;
 mod test_helpers;
+mod tools;
 
 pub trait IOLogs {
     fn log(&self, str: String);
@@ -20,6 +23,35 @@ pub trait IOLogs {
     fn error(&self, str: String);
 }
 
+impl ErrorCode {
+    fn to_io_logs(&self, io: &dyn IOLogs) {
+        match self {
+            ErrorCode::MissingEntry(path) => {
+                io.error(format!("Entry not found: {}", path.join("/")));
+            }
+            ErrorCode::MissingField(path, field) => io.error(format!(
+                "Field not found: {} in path: {}",
+                field,
+                path.join("/")
+            )),
+            ErrorCode::NoPassword(path) => {
+                io.error(format!(
+                    "Entry doesn't contain a password: {}",
+                    path.join("/")
+                ));
+            }
+            ErrorCode::NoUsername(path) => {
+                io.error(format!(
+                    "Entry doesn't contain an username: {}",
+                    path.join("/")
+                ));
+            }
+            ErrorCode::NoUrl(path) => {
+                io.error(format!("Entry doesn't contain an url: {}", path.join("/")));
+            }
+        }
+    }
+}
 fn join_relative(current: &Path, file: String) -> PathBuf {
     if let Some(without_rel_path) = file.strip_prefix("./") {
         join_relative(current, String::from(without_rel_path))
@@ -73,6 +105,7 @@ fn open_keepass_db(keepass_path: String, io: &dyn IOLogs) -> Result<Database, Bo
 
 fn render_and_save_template(
     handlebars: &mut LibHandlebars,
+    io: &dyn IOLogs,
     name: String,
     template_path: String,
     output_path: String,
@@ -87,7 +120,7 @@ fn render_and_save_template(
     std::fs::write(&output_path, rendered)
         .map_err(|e| format!("Failed to write output file {}: {}", output_path, e))?;
 
-    println!("file written: {}", output_path);
+    io.log(format!("file written: {}", output_path));
     Ok(())
 }
 
@@ -128,9 +161,21 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
     match args.command {
         Commands::Config(config_command) => match config_command {
             ConfigCommands::SetDefaultKpDb { url } => {
-                io.log(format!("Setting default KeePass DB URL: {:?}", url));
-                config.config.keepass = Some(url);
-                config.save()?;
+                let path = Path::new(&url);
+                if path.is_absolute() {
+                    if path.exists() {
+                        io.log(format!("Setting default KeePass DB URL: {:?}", url));
+                        config.config.keepass = Some(url);
+                        config.save()?;
+                    } else {
+                        io.error(format!(
+                            "The following file doesn't exist or it can't be accessed: {:?}",
+                            url
+                        ));
+                    }
+                } else {
+                    io.error("The file path is not absolute. It must follow this format: /Users/username/**/*.kdbx on Mac, or C:\\**\\*.kdbx on Windows".to_string());
+                }
             }
             ConfigCommands::GetKpDb => match config.config.keepass {
                 Some(url) => io.log(format!("Current file is {}", url)),
@@ -253,18 +298,27 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
             };
 
             let db = open_keepass_db(keepass, io)?;
-
-            let mut handlebars = build_handlebars(db);
+            let errors_and_warnings = HelperErrors::new();
+            let mut handlebars = build_handlebars(db, &errors_and_warnings);
 
             let output_path = get_output_path(&template, output, relative_to_input);
 
             render_and_save_template(
                 &mut handlebars,
+                io,
                 template.clone(),
                 template,
                 output_path,
                 &variables,
             )?;
+
+            let errors = errors_and_warnings.get_errors();
+            if !errors.is_empty() {
+                io.error("There were some errors processing".into());
+                for error in errors {
+                    error.to_io_logs(io);
+                }
+            }
         }
         Commands::BuildAll { vars } => {
             let mut variables = config.config.get_vars();
@@ -289,7 +343,9 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
 
             let db = open_keepass_db(keepass, io).expect("Database error");
 
-            let mut handlebars = build_handlebars(db);
+            let mut errors_and_warnings = HelperErrors::new();
+            let errors_collector = errors_and_warnings.clone();
+            let mut handlebars = build_handlebars(db, &errors_collector);
 
             for template in files {
                 let name = match template.name {
@@ -298,6 +354,7 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                 };
                 let result = render_and_save_template(
                     &mut handlebars,
+                    io,
                     name.clone(),
                     template.template_path.clone(),
                     template.output_path.clone(),
@@ -312,6 +369,17 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                     };
                     io.log(format!("Skipping template {} because of: {:?}", name, err));
                 }
+                let errors = errors_and_warnings.get_errors();
+                if !errors.is_empty() {
+                    io.error(format!(
+                        "There were some errors processing {}:",
+                        template.template_path
+                    ));
+                    for error in errors {
+                        error.to_io_logs(io);
+                    }
+                }
+                errors_and_warnings.clean();
             }
         }
     }
@@ -322,7 +390,10 @@ mod tests {
 
     use super::*;
 
+    use clap::Parser;
     use test_helpers::tests::{IODebug, TestConfig};
+
+    use std::fs;
 
     #[test]
     fn test_join_relative_basic() {
@@ -380,11 +451,14 @@ mod tests {
     fn test_set_default_keepass_file() {
         let test = TestConfig::create();
         let io = IODebug::new();
+        let relative_path = Path::new("test_resources/test_db.kdbx");
+        let absolute_path = fs::canonicalize(relative_path).unwrap();
+        let absolute_path_string = absolute_path.to_str().unwrap();
 
         let result = execute(
             Cli {
                 command: Commands::Config(ConfigCommands::SetDefaultKpDb {
-                    url: String::from("/path/to/test.kdbx"),
+                    url: String::from(absolute_path_string),
                 }),
                 config: Some(String::from(test.get_file_path())),
             },
@@ -396,13 +470,13 @@ mod tests {
         let config = test.get();
         assert_eq!(
             config.config.keepass,
-            Some(String::from("/path/to/test.kdbx"))
+            Some(String::from(absolute_path_string))
         );
 
         let logs = io.get_logs();
         assert_eq!(
             logs[0],
-            "Setting default KeePass DB URL: \"/path/to/test.kdbx\""
+            format!("Setting default KeePass DB URL: {:?}", absolute_path_string)
         );
     }
 
@@ -522,6 +596,32 @@ mod tests {
         if let Err(error) = ret {
             assert_eq!(error.to_string(),"Failed to render template: Error rendering \"test_resources/file-with-error\" line 2, col 15: Helper not found keepass-2-file")
         }
+    }
+
+    #[test]
+    fn test_rendering_templates_with_invalid_data() {
+        let mut io = IODebug::new();
+        let test = TestConfig::create_with_errors();
+        io.add_stdin("MyTestPass".to_string());
+        let result = execute(
+            Cli::parse_from([
+                "kp2f",
+                "--config",
+                test.get_file_path().as_str(),
+                "build-all",
+            ]),
+            &io,
+        );
+        println!("{:?}", result);
+        assert!(result.is_ok());
+
+        let errors = io.get_errors();
+        println!("{:?}", errors);
+        assert_eq!(errors.len(), 5);
+        assert!(errors[0].contains("0-with-errors"));
+        assert_eq!(errors[1], "Entry not found: invalid/entry");
+        assert_eq!(errors[2], "Field not found: whatever in path: group1/test2");
+        assert!(errors[3].contains("1-with-other-errors"));
     }
 
     #[test]
