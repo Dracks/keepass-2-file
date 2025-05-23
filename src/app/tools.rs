@@ -1,5 +1,3 @@
-use std::vec::Vec;
-
 pub fn convert_vecs<T, U>(v: Vec<T>) -> Vec<U>
 where
     T: Into<U>,

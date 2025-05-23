@@ -344,8 +344,8 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
             let db = open_keepass_db(keepass, io).expect("Database error");
 
             let mut errors_and_warnings = HelperErrors::new();
-            let second = errors_and_warnings.clone();
-            let mut handlebars = build_handlebars(db, &second);
+            let errors_collector = errors_and_warnings.clone();
+            let mut handlebars = build_handlebars(db, &errors_collector);
 
             for template in files {
                 let name = match template.name {
@@ -371,7 +371,13 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                 }
                 let errors = errors_and_warnings.get_errors();
                 if !errors.is_empty() {
-                    io.error(format!("There were some errors processing {}:", template.template_path).into());
+                    io.error(
+                        format!(
+                            "There were some errors processing {}:",
+                            template.template_path
+                        )
+                        .into(),
+                    );
                     for error in errors {
                         error.to_io_logs(io);
                     }
@@ -596,12 +602,17 @@ mod tests {
     }
 
     #[test]
-    fn test_rendering_templates_with_invalid_data(){
+    fn test_rendering_templates_with_invalid_data() {
         let mut io = IODebug::new();
         let test = TestConfig::create_with_errors();
         io.add_stdin("MyTestPass".to_string());
         let result = execute(
-            Cli::parse_from(["kp2f", "--config", test.get_file_path().as_str(), "build-all"]),
+            Cli::parse_from([
+                "kp2f",
+                "--config",
+                test.get_file_path().as_str(),
+                "build-all",
+            ]),
             &io,
         );
         println!("{:?}", result);
@@ -614,7 +625,6 @@ mod tests {
         assert_eq!(errors[1], "Entry not found: invalid/entry");
         assert_eq!(errors[2], "Field not found: whatever in path: group1/test2");
         assert!(errors[3].contains("1-with-other-errors"));
-
     }
 
     #[test]

@@ -102,16 +102,13 @@ impl KeepassHelper<'_> {
                         let result = get_additional_fields(entry, field_name.clone());
                         match result {
                             Some(d2) => Ok(d2),
-                            None => Err(ErrorCode::MissingField(
-                                convert_vecs(path),
-                                field_name.clone(),
-                            )),
+                            None => Err(ErrorCode::MissingField(path_str, field_name.clone())),
                         }
                     }
                 },
             }
         } else {
-            Err(ErrorCode::MissingEntry(convert_vecs(path)))
+            Err(ErrorCode::MissingEntry(path_str))
         }
     }
 }

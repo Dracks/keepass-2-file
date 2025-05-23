@@ -142,7 +142,7 @@ variables:
             self.stdouts.borrow().clone()
         }
 
-        pub fn get_errors(&self) -> Vec<String>{
+        pub fn get_errors(&self) -> Vec<String> {
             self.stderrs.borrow().clone()
         }
     }
