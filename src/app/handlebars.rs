@@ -3,7 +3,7 @@ use handlebars::{
     PathAndJson, RenderContext, RenderError, ScopedJson,
 };
 use keepass::{
-    db::{Entry, NodeRef},
+    db::NodeRef,
     Database,
 };
 
@@ -57,14 +57,6 @@ fn extract_field_type(field_path: Option<&PathAndJson>) -> FieldSelect {
     FieldSelect::Password
 }
 
-fn get_additional_fields(entry: &Entry, field_name: String) -> Option<String> {
-    let contents = entry.get(field_name.as_str());
-    if let Some(contents) = contents {
-        return Some(contents.to_string());
-    }
-    None
-}
-
 impl ErrorCode {
     fn to_hb_entry(&self) -> String {
         match self {
@@ -99,9 +91,9 @@ impl KeepassHelper<'_> {
                         None => Err(ErrorCode::NoUrl(path_str)),
                     },
                     FieldSelect::AdditionalAttributes { field_name } => {
-                        let result = get_additional_fields(entry, field_name.clone());
+                        let result = entry.get(field_name.as_str());
                         match result {
-                            Some(d2) => Ok(d2),
+                            Some(d2) => Ok(d2.into()),
                             None => Err(ErrorCode::MissingField(path_str, field_name.clone())),
                         }
                     }
