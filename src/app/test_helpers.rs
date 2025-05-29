@@ -1,6 +1,7 @@
 #[cfg(test)]
 pub mod tests {
     use super::super::config::GlobalConfig;
+    use super::super::tools::normalize_separators;
     use super::super::IOLogs;
     use std::cell::RefCell;
 
@@ -36,18 +37,20 @@ pub mod tests {
 
         pub fn create() -> TestConfig {
             let current_path = std::env::current_dir().unwrap();
-            let current_path_display = current_path.display();
+            let current_path_string = current_path.to_str().unwrap();
+            let test_path = current_path_string.to_owned()
+                + &normalize_separators("/test_resources/.env.example");
 
             let test_config = format!(
-                "keepass: {current_path_display}/test_resources/test_db.kdbx
+                "keepass: {current_path_string}/test_resources/test_db.kdbx
 templates:
-- template_path: {current_path_display}/some-missing-file
+- template_path: {current_path_string}/some-missing-file
   output_path: something
-- template_path: {current_path_display}/test_resources/.env.example
-  output_path: {current_path_display}/test_resources/tmp/.env
+- template_path: {test_path}
+  output_path: {current_path_string}/test_resources/tmp/.env
   name: valid
-- template_path: {current_path_display}/test_resources/.env.example
-  output_path: {current_path_display}/test_resources/tmp/.env2
+- template_path: {current_path_string}/test_resources/.env.example
+  output_path: {current_path_string}/test_resources/tmp/.env2
   name: other
         "
             );

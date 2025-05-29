@@ -82,16 +82,21 @@ fn get_output_path(template: &String, output: String, relative_to_input: bool) -
 }
 
 fn get_absolute_path(path: String) -> String {
-    if path.starts_with('/') {
-        path
-    } else {
-        let current_buff = std::env::current_dir().unwrap();
-        let current_dir = current_buff.as_path();
+    let original_path = Path::new(&path);
+    let absolute_path = original_path.canonicalize();
 
-        join_relative(current_dir, path)
-            .to_str()
-            .unwrap()
-            .to_string()
+    match absolute_path {
+        Ok(absoluted) => return String::from(absoluted.to_str().unwrap()),
+        Err(_e) => {
+            return String::from(
+                std::env::current_dir()
+                    .unwrap()
+                    .join(original_path)
+                    .to_str()
+                    .unwrap()
+                    .to_string(),
+            );
+        }
     }
 }
 
@@ -391,16 +396,19 @@ mod tests {
     use super::*;
 
     use clap::Parser;
-    use test_helpers::tests::{IODebug, TestConfig};
-
     use std::fs;
+    use test_helpers::tests::{IODebug, TestConfig};
+    use tools::normalize_separators;
 
     #[test]
     fn test_join_relative_basic() {
         let test_path = Path::new("/home/users/devel/");
         let relative_path = String::from("./../.././file");
         let result = join_relative(&test_path, relative_path);
-        assert_eq!(result.to_str().unwrap(), "/home/file");
+        assert_eq!(
+            normalize_separators(result.to_str().unwrap()),
+            normalize_separators("/home/file")
+        );
     }
 
     #[test]
@@ -519,7 +527,7 @@ mod tests {
         println!("{:?}", logs);
         assert_eq!(logs.len(), 4);
         assert_eq!(logs[0], "Configured templates:");
-        assert!(logs[2].contains("/test_resources/.env.example -> "));
+        assert!(logs[2].contains(&normalize_separators("/test_resources/.env.example -> ")));
     }
 
     #[test]
