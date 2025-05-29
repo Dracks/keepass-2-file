@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       draft:
-        description: 'Create as draft release'
+        description: "Create as draft release"
         required: true
         default: true
         type: boolean
@@ -15,7 +15,7 @@ jobs:
   version:
     runs-on: ubuntu-latest
     outputs:
-        tag: ${{ steps.vars.outputs.tag }}
+      tag: ${{ steps.vars.outputs.tag }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -49,7 +49,6 @@ jobs:
               });
             })
 
-
   build-and-upload:
     name: Build and upload
     runs-on: ${{ matrix.os }}
@@ -68,6 +67,9 @@ jobs:
           - build: macos
             os: macos-latest
             target: aarch64-apple-darwin
+          - build: windows
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
 
     steps:
       - name: Checkout
