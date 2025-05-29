@@ -1,7 +1,6 @@
 #[cfg(test)]
 pub mod tests {
     use super::super::config::GlobalConfig;
-    use super::super::tools;
     use super::super::IOLogs;
     use std::cell::RefCell;
 

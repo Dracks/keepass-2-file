@@ -52,7 +52,6 @@ impl ErrorCode {
         }
     }
 }
-
 fn join_relative(current: &Path, file: String) -> PathBuf {
     if let Some(without_rel_path) = file.strip_prefix("./") {
         join_relative(current, String::from(without_rel_path))
@@ -398,11 +397,10 @@ mod tests {
 
     #[test]
     fn test_join_relative_basic() {
-        let test_path = tools::normalize_path("test_resources/test_db.kdbx");
-        let absolute_path: PathBuf = Path::new("src/app").canonicalize().unwrap();
-        let relative_path = String::from("./../../test_resources/test_db.kdbx");
-        let joint_path = tools::normalize_path(join_relative(&absolute_path, relative_path));
-        assert_eq!(joint_path, test_path);
+        let test_path = Path::new("/home/users/devel/");
+        let relative_path = String::from("./../.././file");
+        let result = join_relative(&test_path, relative_path);
+        assert_eq!(result.to_str().unwrap(), "/home/file");
     }
 
     #[test]
@@ -559,8 +557,8 @@ mod tests {
             Cli {
                 command: Commands::Config(ConfigCommands::AddFile {
                     name: Some(String::from("New name")),
-                    template: tools::normalize_path("./test_resources/.env.example"),
-                    output: tools::normalize_path("./test_resources/tmp/.env"),
+                    template: String::from("./test_resources/.env.example"),
+                    output: String::from("./test_resources/tmp/.env"),
                     relative_to_input: false,
                 }),
                 config: Some(String::from(test.get_file_path())),
