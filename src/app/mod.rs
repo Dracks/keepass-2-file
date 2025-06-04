@@ -52,6 +52,7 @@ impl ErrorCode {
         }
     }
 }
+
 fn join_relative(current: &Path, file: String) -> PathBuf {
     if let Some(without_rel_path) = file.strip_prefix("./") {
         join_relative(current, String::from(without_rel_path))
@@ -559,7 +560,8 @@ mod tests {
 
     #[test]
     fn test_adding_existing_template_will_replace_it() {
-        let test = TestConfig::create();
+        let mut test = TestConfig::create_super_config();
+        test.disable_auto_clean();
         let io = IODebug::new();
         let result = execute(
             Cli {
@@ -581,7 +583,7 @@ mod tests {
 
         let templates = out_config.config.get_templates();
         assert_eq!(templates.len(), 3);
-        assert_eq!(templates[1].name, Some(String::from("New name")));
+        assert_eq!(templates[2].name, Some(String::from("New name")));
     }
 
     #[test]
@@ -857,5 +859,18 @@ mod tests {
         let file_contents = std::fs::read_to_string(output_file_path).unwrap();
         assert!(file_contents.contains("SOMETHING=\"is a variable\""));
         assert!(file_contents.contains("EMAIL=\"j@k2.com\""));
+    }
+
+    #[test]
+    fn test_fix_windows() {
+        let template = String::from("./test_resources/.env.example");
+        println!("{}", template);
+
+        let original_path = Path::new(&template);
+        println!("{:?}", original_path);
+        let absolute_path = original_path.canonicalize();
+        println!("{:?}", absolute_path);
+
+        assert!(false)
     }
 }

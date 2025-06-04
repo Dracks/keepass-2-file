@@ -4,6 +4,7 @@ pub mod tests {
     use super::super::tools::normalize_separators;
     use super::super::IOLogs;
     use std::cell::RefCell;
+    use std::path::Path;
 
     pub struct TestConfig {
         config_file: String,
@@ -18,6 +19,53 @@ pub mod tests {
         pub fn get(&self) -> GlobalConfig {
             GlobalConfig::new(&self.config_file)
                 .expect("Failed to load temp config created by TestConfig")
+        }
+
+        pub fn create_super_config() -> TestConfig {
+            let uuid = uuid::Uuid::new_v4();
+            let config_file = format!("test_resources/tmp/config_{}.yml", uuid);
+            let current_path = std::env::current_dir().unwrap();
+            let current_path_string = current_path.to_str().unwrap();
+            std::fs::create_dir_all("test_resources/tmp")
+                .expect("Unable to create temporary test_resources/tmp directory");
+
+            if let Ok(config) = GlobalConfig::new(&config_file) {
+                let mut config: GlobalConfig<'_> = config;
+                config.config.add_template(
+                    Some("something".into()),
+                    current_path_string.to_owned()
+                        + &normalize_separators("/test_resources/test_db.kdbx"),
+                    "something".into(),
+                );
+
+                let template = Path::new("test_resources/.env.example")
+                    .canonicalize()
+                    .expect("Testing!");
+                let template_string: String = String::from(template.to_str().unwrap());
+                let output = Path::new("test_resources/tmp/.env")
+                    .canonicalize()
+                    .expect("Testing!");
+
+                config.config.add_template(
+                    Some("valid".into()),
+                    template_string,
+                    String::from(output.to_str().unwrap()),
+                );
+
+                config.config.add_template(
+                    Some("other".into()),
+                    current_path_string.to_owned()
+                        + &normalize_separators("/test_resources/.env.example"),
+                    current_path_string.to_owned()
+                        + &normalize_separators("/test_resources/tmp/.env2"),
+                );
+                let _ = config.save();
+            }
+
+            TestConfig {
+                config_file,
+                auto_clean: false,
+            }
         }
 
         fn create_config(content: Option<String>) -> TestConfig {

@@ -1,5 +1,3 @@
-use std::path::MAIN_SEPARATOR;
-
 pub fn convert_vecs<T, U>(v: Vec<T>) -> Vec<U>
 where
     T: Into<U>,
@@ -9,5 +7,5 @@ where
 
 #[allow(dead_code)]
 pub fn normalize_separators(path: &str) -> String {
-    path.replace(['/', '\\'], &MAIN_SEPARATOR.to_string())
+    path.replace(['/', '\\'], &std::path::MAIN_SEPARATOR.to_string())
 }
