@@ -90,12 +90,12 @@ impl YamlConfig {
     }
 }
 
-pub struct ConfigHandler<'f> {
-    file: &'f str,
+pub struct ConfigHandler {
+    file: String,
     pub config: YamlConfig,
 }
 
-impl ConfigHandler<'_> {
+impl ConfigHandler {
     pub fn new(file: &str) -> Result<ConfigHandler, Box<dyn std::error::Error>> {
         if !std::path::Path::new(file).exists() {
             std::fs::write(file, "")?;
@@ -112,16 +112,16 @@ impl ConfigHandler<'_> {
             serde_yaml::from_str(&contents)?
         };
 
-        Ok(ConfigHandler { file, config })
+        Ok(ConfigHandler { file: file.to_string(), config })
     }
 
     pub fn get_file(&self) -> &str {
-        self.file
+        &self.file
     }
 
     pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
         let yaml = serde_yaml::to_string(&self.config)?;
-        std::fs::write(self.file, yaml)?;
+        std::fs::write(&self.file, yaml)?;
         Ok(())
     }
 }

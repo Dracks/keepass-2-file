@@ -596,6 +596,10 @@ mod tests {
         if let Err(error) = ret {
             assert_eq!(error.to_string(),"Failed to render template: Error rendering \"test_resources/file-with-error\" line 2, col 15: Helper not found keepass-2-file")
         }
+        let stdins_promps = io.get_stdin_promps();
+        assert_eq!(stdins_promps.len(), 1);
+        assert_eq!(stdins_promps[0].secure, true);
+        assert_eq!(stdins_promps[0].msg, "Enter the KeePass database password: ");
     }
 
     #[test]
