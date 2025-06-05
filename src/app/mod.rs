@@ -1,5 +1,5 @@
 use commands::{Cli, Commands, ConfigCommands, NameOrPath};
-use config::GlobalConfig;
+use config::ConfigHandler;
 use errors_and_warnings::{ErrorCode, HelperErrors};
 use handlebars::{build_handlebars, LibHandlebars};
 use keepass::{Database, DatabaseKey};
@@ -156,7 +156,7 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
         .unwrap_or_else(|| format!("{}/.config/keepass-2-file.yaml", home));
 
     // Load and parse the configuration file
-    let mut config = GlobalConfig::new(&config_path)?;
+    let mut config = ConfigHandler::new(&config_path)?;
 
     match args.command {
         Commands::Config(config_command) => match config_command {

@@ -1,6 +1,6 @@
 #[cfg(test)]
 pub mod tests {
-    use super::super::config::GlobalConfig;
+    use super::super::config::ConfigHandler;
     use super::super::IOLogs;
     use std::cell::RefCell;
 
@@ -14,8 +14,8 @@ pub mod tests {
             self.config_file.clone()
         }
 
-        pub fn get(&self) -> GlobalConfig {
-            GlobalConfig::new(&self.config_file)
+        pub fn get(&self) -> ConfigHandler {
+            ConfigHandler::new(&self.config_file)
                 .expect("Failed to load temp config created by TestConfig")
         }
 
