@@ -599,7 +599,10 @@ mod tests {
         let stdins_promps = io.get_stdin_promps();
         assert_eq!(stdins_promps.len(), 1);
         assert_eq!(stdins_promps[0].secure, true);
-        assert_eq!(stdins_promps[0].msg, "Enter the KeePass database password: ");
+        assert_eq!(
+            stdins_promps[0].msg,
+            "Enter the KeePass database password: "
+        );
     }
 
     #[test]

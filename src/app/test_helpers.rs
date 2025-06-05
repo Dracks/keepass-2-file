@@ -121,7 +121,7 @@ variables:
     #[derive(Clone)]
     pub struct StdInPromp {
         pub msg: String,
-        pub secure: bool
+        pub secure: bool,
     }
 
     pub struct IODebug {
@@ -166,7 +166,9 @@ variables:
 
         fn read(&self, msg: String, secure: bool) -> std::io::Result<String> {
             let mut stdins = self.stdins.borrow_mut();
-            self.stdins_promp.borrow_mut().push(StdInPromp { msg, secure });
+            self.stdins_promp
+                .borrow_mut()
+                .push(StdInPromp { msg, secure });
             assert!(!stdins.is_empty());
 
             let value = stdins.remove(0);

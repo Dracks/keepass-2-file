@@ -112,7 +112,10 @@ impl ConfigHandler {
             serde_yaml::from_str(&contents)?
         };
 
-        Ok(ConfigHandler { file: file.to_string(), config })
+        Ok(ConfigHandler {
+            file: file.to_string(),
+            config,
+        })
     }
 
     pub fn get_file(&self) -> &str {
