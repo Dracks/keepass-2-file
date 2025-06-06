@@ -66,13 +66,17 @@ impl ErrorCode {
             ErrorCode::NoUsername(_) => NO_USERNAME_ERROR.into(),
             ErrorCode::NoUrl(_) => NO_URL_ERROR.into(),
             ErrorCode::MissingPath => NO_ENTRY_CONFIGURED.into(),
-            ErrorCode::DeprecatedSelectorPath(_) => "Unused".into()
+            ErrorCode::DeprecatedSelectorPath(_) => "Unused".into(),
         }
     }
 }
 
 impl KeepassHelper<'_> {
-    fn extract_entry(&self, path_str: Vec<String>, field: FieldSelect) -> Result<String, ErrorCode> {
+    fn extract_entry(
+        &self,
+        path_str: Vec<String>,
+        field: FieldSelect,
+    ) -> Result<String, ErrorCode> {
         let path: Vec<&str> = path_str.iter().map(|x| x.as_str()).collect::<Vec<&str>>();
         if let Some(node) = self.db.root.get(&path) {
             match node {
@@ -118,16 +122,17 @@ impl HelperDef for KeepassHelper<'_> {
             .iter()
             .map(|x| x.render())
             .collect::<Vec<String>>();
-        if args.is_empty(){
+        if args.is_empty() {
             self.errors.register_error(ErrorCode::MissingPath);
             return Ok(ScopedJson::Derived(JsonValue::from(
                 ErrorCode::MissingPath.to_hb_entry(),
-            )))
+            )));
         }
         let path = if args.len() == 1 {
             convert_vecs(args[0].split("/").collect())
         } else {
-            self.errors.register_error(ErrorCode::DeprecatedSelectorPath(args.clone()));
+            self.errors
+                .register_error(ErrorCode::DeprecatedSelectorPath(args.clone()));
             args
         };
         let field = extract_field_type(h.hash_get("field"));

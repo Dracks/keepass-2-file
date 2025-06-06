@@ -63,13 +63,15 @@ impl ErrorCode {
                     prefix.error,
                     path.join("/")
                 ));
-            },
+            }
             ErrorCode::MissingPath => {
                 io.error(format!("{}: Helper is not correctly used", prefix.error))
-            },
-            ErrorCode::DeprecatedSelectorPath(path) => {
-                io.error(format!("{}: Deprecated entry selector, please use \"{}\" format", prefix.warning, path.join("/")))
             }
+            ErrorCode::DeprecatedSelectorPath(path) => io.error(format!(
+                "{}: Deprecated entry selector, please use \"{}\" format",
+                prefix.warning,
+                path.join("/")
+            )),
         }
     }
 }
@@ -666,15 +668,18 @@ mod tests {
         let mut io = IODebug::new();
         io.add_stdin("MyTestPass".to_string());
 
-        let result = execute(Cli::parse_from([
-            "kp2f",
-            "build",
-            "-k",
-            "./test_resources/test_db.kdbx",
-            "./test_resources/.env.all-errors",
-            "-r",
-            "./tmp/file_with_errors",
-        ]), &io);
+        let result = execute(
+            Cli::parse_from([
+                "kp2f",
+                "build",
+                "-k",
+                "./test_resources/test_db.kdbx",
+                "./test_resources/.env.all-errors",
+                "-r",
+                "./tmp/file_with_errors",
+            ]),
+            &io,
+        );
 
         println!("{:?}", result);
         assert!(result.is_ok());
@@ -682,12 +687,24 @@ mod tests {
         let errors = io.get_errors();
         println!("{:?}", errors);
         assert_eq!(errors.len(), 8);
-        assert_eq!(errors[1], "warning: Deprecated entry selector, please use \"group1/test2\" format");
+        assert_eq!(
+            errors[1],
+            "warning: Deprecated entry selector, please use \"group1/test2\" format"
+        );
         assert_eq!(errors[2], "error: Entry not found: invalid/entry");
-        assert_eq!(errors[3], "error: Field not found: whatever in path: group1/test2");
-        assert_eq!(errors[4], "error: Entry doesn't contain an username: missing");
+        assert_eq!(
+            errors[3],
+            "error: Field not found: whatever in path: group1/test2"
+        );
+        assert_eq!(
+            errors[4],
+            "error: Entry doesn't contain an username: missing"
+        );
         assert_eq!(errors[5], "error: Entry doesn't contain an url: missing");
-        assert_eq!(errors[6], "error: Entry doesn't contain a password: missing");
+        assert_eq!(
+            errors[6],
+            "error: Entry doesn't contain a password: missing"
+        );
         assert_eq!(errors[7], "error: Helper is not correctly used");
     }
 
