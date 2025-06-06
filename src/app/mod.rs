@@ -660,6 +660,38 @@ mod tests {
     }
 
     #[test]
+    fn test_render_all_errors() {
+        let _colorized = OverrideColorize::new(false);
+
+        let mut io = IODebug::new();
+        io.add_stdin("MyTestPass".to_string());
+
+        let result = execute(Cli::parse_from([
+            "kp2f",
+            "build",
+            "-k",
+            "./test_resources/test_db.kdbx",
+            "./test_resources/.env.all-errors",
+            "-r",
+            "./tmp/file_with_errors",
+        ]), &io);
+
+        println!("{:?}", result);
+        assert!(result.is_ok());
+
+        let errors = io.get_errors();
+        println!("{:?}", errors);
+        assert_eq!(errors.len(), 8);
+        assert_eq!(errors[1], "warning: Deprecated entry selector, please use \"group1/test2\" format");
+        assert_eq!(errors[2], "error: Entry not found: invalid/entry");
+        assert_eq!(errors[3], "error: Field not found: whatever in path: group1/test2");
+        assert_eq!(errors[4], "error: Entry doesn't contain an username: missing");
+        assert_eq!(errors[5], "error: Entry doesn't contain an url: missing");
+        assert_eq!(errors[6], "error: Entry doesn't contain a password: missing");
+        assert_eq!(errors[7], "error: Helper is not correctly used");
+    }
+
+    #[test]
     fn test_prune_command() {
         let test = TestConfig::create();
         let io = IODebug::new();
