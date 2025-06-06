@@ -7,12 +7,14 @@ pub static LOG_PREFIX: LazyLock<LogPrefix> = LazyLock::new(LogPrefix::new);
 #[derive(Clone)]
 pub struct LogPrefix {
     pub error: String,
+    pub warning: String,
 }
 
 impl LogPrefix {
     fn new() -> Self {
         LogPrefix {
             error: "error".red().to_string(),
+            warning: "warning".yellow().to_string(),
         }
     }
 }
@@ -43,6 +45,7 @@ pub mod test {
         let _colorized = OverrideColorize::new(true);
         let subject = LogPrefix::new();
 
+        assert_eq!(subject.warning, "\u{1b}[33mwarning\u{1b}[0m");
         assert_eq!(subject.error, "\u{1b}[31merror\u{1b}[0m")
     }
 
@@ -51,6 +54,7 @@ pub mod test {
         let _colorized = OverrideColorize::new(false);
         let subject = LogPrefix::new();
 
-        assert_eq!(subject.error, "error")
+        assert_eq!(subject.error, "error");
+        assert_eq!(subject.warning, "warning");
     }
 }
