@@ -63,6 +63,12 @@ impl ErrorCode {
                     prefix.error,
                     path.join("/")
                 ));
+            },
+            ErrorCode::MissingPath => {
+                io.error(format!("{}: Helper is not correctly used", prefix.error))
+            },
+            ErrorCode::DeprecatedSelectorPath(path) => {
+                io.error(format!("{}: Deprecated entry selector, please use \"{}\" format", prefix.warning, path.join("/")))
             }
         }
     }
