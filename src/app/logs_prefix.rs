@@ -1,6 +1,6 @@
 use std::sync::LazyLock;
 
-use colored::{control, Colorize};
+use colored::Colorize;
 
 pub static LOG_PREFIX: LazyLock<LogPrefix> = LazyLock::new(LogPrefix::new);
 
@@ -10,37 +10,46 @@ pub struct LogPrefix {
 }
 
 impl LogPrefix {
-    fn build(enable_colorize: bool) -> Self {
-        if enable_colorize {
-            LogPrefix {
-                error: "error".red().to_string(),
-            }
-        } else {
-            LogPrefix {
-                error: "error".to_string(),
-            }
-        }
-    }
     fn new() -> Self {
-        let enable_colorize = control::SHOULD_COLORIZE.should_colorize();
-        Self::build(enable_colorize)
+        LogPrefix {
+            error: "error".red().to_string(),
+        }
     }
 }
 
 #[cfg(test)]
-mod test {
+pub mod test {
+    use colored::control;
+
     use super::*;
+
+    pub struct OverrideColorize {}
+
+    impl OverrideColorize {
+        pub fn new(color: bool) -> Self {
+            control::SHOULD_COLORIZE.set_override(color);
+            Self {}
+        }
+    }
+
+    impl Drop for OverrideColorize {
+        fn drop(&mut self) {
+            control::SHOULD_COLORIZE.unset_override();
+        }
+    }
 
     #[test]
     fn test_log_prefix_colorized() {
-        let subject = LogPrefix::build(true);
+        let _colorized = OverrideColorize::new(true);
+        let subject = LogPrefix::new();
 
         assert_eq!(subject.error, "\u{1b}[31merror\u{1b}[0m")
     }
 
     #[test]
     fn test_log_prefix_not_colorized() {
-        let subject = LogPrefix::build(false);
+        let _colorized = OverrideColorize::new(false);
+        let subject = LogPrefix::new();
 
         assert_eq!(subject.error, "error")
     }

@@ -407,6 +407,7 @@ mod tests {
     use super::*;
 
     use clap::Parser;
+    use logs_prefix::test::OverrideColorize;
     use test_helpers::tests::{IODebug, TestConfig};
 
     use std::fs;
@@ -623,6 +624,8 @@ mod tests {
 
     #[test]
     fn test_rendering_templates_with_invalid_data() {
+        let _colorized = OverrideColorize::new(false);
+
         let mut io = IODebug::new();
         let test = TestConfig::create_with_errors();
         io.add_stdin("MyTestPass".to_string());
@@ -642,13 +645,10 @@ mod tests {
         println!("{:?}", errors);
         assert_eq!(errors.len(), 5);
         assert!(errors[0].contains("0-with-errors"));
-        assert_eq!(
-            errors[1],
-            "\u{1b}[31merror\u{1b}[0m: Entry not found: invalid/entry"
-        );
+        assert_eq!(errors[1], "error: Entry not found: invalid/entry");
         assert_eq!(
             errors[2],
-            "\u{1b}[31merror\u{1b}[0m: Field not found: whatever in path: group1/test2"
+            "error: Field not found: whatever in path: group1/test2"
         );
         assert!(errors[3].contains("1-with-other-errors"));
     }
