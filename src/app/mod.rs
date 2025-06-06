@@ -30,6 +30,13 @@ impl ErrorCode {
     fn to_io_logs(&self, io: &dyn IOLogs) {
         let prefix = LOG_PREFIX.clone();
         match self {
+            ErrorCode::GroupFound(path) => {
+                io.error(format!(
+                    "{}: Found a group, not an entry: {}",
+                    prefix.error,
+                    path.join("/")
+                ));
+            }
             ErrorCode::MissingEntry(path) => {
                 io.error(format!(
                     "{}: Entry not found: {}",
@@ -686,7 +693,7 @@ mod tests {
 
         let errors = io.get_errors();
         println!("{:?}", errors);
-        assert_eq!(errors.len(), 8);
+        assert_eq!(errors.len(), 9);
         assert_eq!(
             errors[1],
             "warning: Deprecated entry selector, please use \"group1/test2\" format"
@@ -706,6 +713,7 @@ mod tests {
             "error: Entry doesn't contain a password: missing"
         );
         assert_eq!(errors[7], "error: Helper is not correctly used");
+        assert_eq!(errors[8], "error: Found a group not an entry: \"group1\"");
     }
 
     #[test]

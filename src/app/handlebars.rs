@@ -58,6 +58,7 @@ fn extract_field_type(field_path: Option<&PathAndJson>) -> FieldSelect {
 impl ErrorCode {
     fn to_hb_entry(&self) -> String {
         match self {
+            ErrorCode::GroupFound(_) => NOT_FOUND_ERROR.into(),
             ErrorCode::MissingEntry(_) => NOT_FOUND_ERROR.into(),
             ErrorCode::MissingField(_, field_name) => {
                 ATTRIBUTE_NOT_FOUND_ERROR.replace("{field-name}", field_name.as_str())
@@ -80,7 +81,7 @@ impl KeepassHelper<'_> {
         let path: Vec<&str> = path_str.iter().map(|x| x.as_str()).collect::<Vec<&str>>();
         if let Some(node) = self.db.root.get(&path) {
             match node {
-                NodeRef::Group(_) => Err(ErrorCode::MissingEntry(path_str)),
+                NodeRef::Group(_) => Err(ErrorCode::GroupFound(path_str)),
                 NodeRef::Entry(entry) => match field {
                     FieldSelect::Password => match entry.get_password() {
                         Some(pwd) => Ok(pwd.into()),
