@@ -713,7 +713,7 @@ mod tests {
             "error: Entry doesn't contain a password: missing"
         );
         assert_eq!(errors[7], "error: Helper is not correctly used");
-        assert_eq!(errors[8], "error: Found a group not an entry: \"group1\"");
+        assert_eq!(errors[8], "error: Found a group not an entry: group1");
     }
 
     #[test]
