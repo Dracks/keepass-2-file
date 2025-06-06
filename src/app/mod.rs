@@ -1,3 +1,4 @@
+use colored::{Colorize};
 use commands::{Cli, Commands, ConfigCommands, NameOrPath};
 use config::ConfigHandler;
 use errors_and_warnings::{ErrorCode, HelperErrors};
@@ -25,29 +26,33 @@ pub trait IOLogs {
 
 impl ErrorCode {
     fn to_io_logs(&self, io: &dyn IOLogs) {
+        let error_log = "error".red();
         match self {
             ErrorCode::MissingEntry(path) => {
-                io.error(format!("Entry not found: {}", path.join("/")));
+                io.error(format!("{}: Entry not found: {}", error_log, path.join("/")));
             }
             ErrorCode::MissingField(path, field) => io.error(format!(
-                "Field not found: {} in path: {}",
+                "{}: Field not found: {} in path: {}",
+                error_log,
                 field,
                 path.join("/")
             )),
             ErrorCode::NoPassword(path) => {
                 io.error(format!(
-                    "Entry doesn't contain a password: {}",
+                    "{}: Entry doesn't contain a password: {}",
+                    error_log,
                     path.join("/")
                 ));
             }
             ErrorCode::NoUsername(path) => {
                 io.error(format!(
-                    "Entry doesn't contain an username: {}",
+                    "{}: Entry doesn't contain an username: {}",
+                    error_log,
                     path.join("/")
                 ));
             }
             ErrorCode::NoUrl(path) => {
-                io.error(format!("Entry doesn't contain an url: {}", path.join("/")));
+                io.error(format!("{}: Entry doesn't contain an url: {}", error_log, path.join("/")));
             }
         }
     }
@@ -626,8 +631,8 @@ mod tests {
         println!("{:?}", errors);
         assert_eq!(errors.len(), 5);
         assert!(errors[0].contains("0-with-errors"));
-        assert_eq!(errors[1], "Entry not found: invalid/entry");
-        assert_eq!(errors[2], "Field not found: whatever in path: group1/test2");
+        assert_eq!(errors[1], "\u{1b}[31merror\u{1b}[0m: Entry not found: invalid/entry");
+        assert_eq!(errors[2], "\u{1b}[31merror\u{1b}[0m: Field not found: whatever in path: group1/test2");
         assert!(errors[3].contains("1-with-other-errors"));
     }
 
