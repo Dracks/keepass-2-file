@@ -1,4 +1,3 @@
-use colored::{Colorize};
 use commands::{Cli, Commands, ConfigCommands, NameOrPath};
 use config::ConfigHandler;
 use errors_and_warnings::{ErrorCode, HelperErrors};
@@ -11,10 +10,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use crate::app::logs_prefix::LOG_PREFIX;
+
 pub mod commands;
 pub mod config;
 mod errors_and_warnings;
 pub mod handlebars;
+mod logs_prefix;
 mod test_helpers;
 mod tools;
 
@@ -26,37 +28,46 @@ pub trait IOLogs {
 
 impl ErrorCode {
     fn to_io_logs(&self, io: &dyn IOLogs) {
-        let error_log = "error".red();
+        let prefix = LOG_PREFIX.clone();
         match self {
             ErrorCode::MissingEntry(path) => {
-                io.error(format!("{}: Entry not found: {}", error_log, path.join("/")));
+                io.error(format!(
+                    "{}: Entry not found: {}",
+                    prefix.error,
+                    path.join("/")
+                ));
             }
             ErrorCode::MissingField(path, field) => io.error(format!(
                 "{}: Field not found: {} in path: {}",
-                error_log,
+                prefix.error,
                 field,
                 path.join("/")
             )),
             ErrorCode::NoPassword(path) => {
                 io.error(format!(
                     "{}: Entry doesn't contain a password: {}",
-                    error_log,
+                    prefix.error,
                     path.join("/")
                 ));
             }
             ErrorCode::NoUsername(path) => {
                 io.error(format!(
                     "{}: Entry doesn't contain an username: {}",
-                    error_log,
+                    prefix.error,
                     path.join("/")
                 ));
             }
             ErrorCode::NoUrl(path) => {
-                io.error(format!("{}: Entry doesn't contain an url: {}", error_log, path.join("/")));
+                io.error(format!(
+                    "{}: Entry doesn't contain an url: {}",
+                    prefix.error,
+                    path.join("/")
+                ));
             }
         }
     }
 }
+
 fn join_relative(current: &Path, file: String) -> PathBuf {
     if let Some(without_rel_path) = file.strip_prefix("./") {
         join_relative(current, String::from(without_rel_path))
@@ -631,8 +642,14 @@ mod tests {
         println!("{:?}", errors);
         assert_eq!(errors.len(), 5);
         assert!(errors[0].contains("0-with-errors"));
-        assert_eq!(errors[1], "\u{1b}[31merror\u{1b}[0m: Entry not found: invalid/entry");
-        assert_eq!(errors[2], "\u{1b}[31merror\u{1b}[0m: Field not found: whatever in path: group1/test2");
+        assert_eq!(
+            errors[1],
+            "\u{1b}[31merror\u{1b}[0m: Entry not found: invalid/entry"
+        );
+        assert_eq!(
+            errors[2],
+            "\u{1b}[31merror\u{1b}[0m: Field not found: whatever in path: group1/test2"
+        );
         assert!(errors[3].contains("1-with-other-errors"));
     }
 
