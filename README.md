@@ -8,6 +8,7 @@
 [![codecov](https://codecov.io/gh/Dracks/keepass-2-file/branch/main/graph/badge.svg)](https://codecov.io/gh/Dracks/keepass-2-file)
 ![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20macOS%20%7C%20Windows-333333.svg?style=flat)
 [![License](https://img.shields.io/badge/license-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html)
+[![GitHub release](https://img.shields.io/github/v/release/Dracks/keepass-2-file?include_prereleases&label=release)](https://github.com/Dracks/keepass-2-file/releases)
 
 </div>
 
