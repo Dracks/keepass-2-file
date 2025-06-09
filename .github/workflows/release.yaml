@@ -12,9 +12,48 @@ permissions:
   contents: write
 
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+        tag: ${{ steps.vars.outputs.tag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install Rust
+        # Or @nightly if you want
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Get the release version from the package
+        id: vars
+        shell: bash
+        run: |
+          echo "tag=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')" >> $GITHUB_OUTPUT;
+      - name: Create/update tag
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'refs/tags/v${{ steps.vars.outputs.tag }}',
+              sha: context.sha
+            }).catch(err => {
+              if (err.status !== 422) throw err;
+              github.rest.git.updateRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: 'tags/v${{ steps.vars.outputs.tag }}',
+                sha: context.sha
+              });
+            })
+
+
   build-and-upload:
     name: Build and upload
     runs-on: ${{ matrix.os }}
+    needs: version
 
     strategy:
       matrix:
@@ -42,10 +81,6 @@ jobs:
           # Make Rust compile to our target (defined in the matrix)
           targets: ${{ matrix.target }}
 
-      - name: Get the release version from the package
-        shell: bash
-        run: echo "VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')" >> $GITHUB_ENV
-
       - name: Build
         uses: actions-rs/cargo@v1
         with:
@@ -59,7 +94,7 @@ jobs:
           # Replace with the name of your binary
           binary_name="keepass-2-file"
 
-          dirname="$binary_name-${{ env.VERSION }}-${{ matrix.target }}"
+          dirname="$binary_name-${{ needs.version.outputs.tag }}-${{ matrix.target }}"
           mkdir -p "$dirname"
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             mv "target/${{ matrix.target }}/release/$binary_name.exe" "$dirname"
@@ -80,6 +115,6 @@ jobs:
         with:
           files: |
             ${{ env.ASSET }}
-          tag_name: ${{ env.VERSION }}
-          name: ${{ env.VERSION }}
+          tag_name: "v${{ needs.version.outputs.tag }}"
+          name: "v${{ needs.version.outputs.tag }}"
           draft: ${{ inputs.draft || false }}

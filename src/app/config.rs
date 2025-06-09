@@ -13,17 +13,16 @@ pub struct YamlConfigTemplate {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct YamlConfig {
     pub keepass: Option<String>,
-    templates: Option<Vec<YamlConfigTemplate>>,
-    variables: Option<HashMap<String, String>>,
+
+    #[serde(default)]
+    templates: Vec<YamlConfigTemplate>,
+    #[serde(default)]
+    variables: HashMap<String, String>,
 }
 
 impl YamlConfig {
     pub fn get_templates(&self) -> Vec<YamlConfigTemplate> {
-        if let Some(ref templates) = self.templates {
-            templates.to_vec()
-        } else {
-            Vec::new()
-        }
+        self.templates.to_vec()
     }
 
     pub fn add_template(
@@ -32,8 +31,7 @@ impl YamlConfig {
         template_path: String,
         output_path: String,
     ) {
-        let templates = self.templates.clone();
-        let mut templates = templates.unwrap_or_default();
+        let mut templates = self.templates.clone();
         let existing_template = templates
             .iter_mut()
             .find(|t| t.template_path == template_path && t.output_path == output_path);
@@ -51,63 +49,54 @@ impl YamlConfig {
             std::cmp::Ordering::Equal => a.output_path.cmp(&b.output_path),
             ord => ord,
         });
-        self.templates = Some(templates)
+        self.templates = templates
     }
 
     pub fn delete_templates(&mut self, name: String) {
-        let templates = self.templates.clone();
-        let templates = templates.unwrap_or_default().into_iter();
-        self.templates = Some(
-            templates
-                .filter(|template| {
-                    if let Some(template_name) = &template.name {
-                        return &name != template_name;
-                    }
-                    true
-                })
-                .collect(),
-        );
+        let templates = self.templates.clone().into_iter();
+        self.templates = templates
+            .filter(|template| {
+                if let Some(template_name) = &template.name {
+                    return &name != template_name;
+                }
+                true
+            })
+            .collect();
     }
 
     pub fn delete_template(&mut self, template_path: String, output_path: String) {
-        let templates = self.templates.clone();
-        let templates = templates.unwrap_or_default().into_iter();
-        self.templates = Some(
-            templates
-                .filter(|template| {
-                    !(template.template_path == template_path
-                        && template.output_path == output_path)
-                })
-                .collect(),
-        );
+        let templates = self.templates.clone().into_iter();
+        self.templates = templates
+            .filter(|template| {
+                !(template.template_path == template_path && template.output_path == output_path)
+            })
+            .collect();
     }
 
     pub fn get_vars(&self) -> HashMap<String, String> {
-        self.variables.clone().unwrap_or_default()
+        self.variables.clone()
     }
 
     pub fn add_var(&mut self, var_name: String, value: String) {
-        let temp_variables = self.variables.clone();
-        let mut tmp_variables = temp_variables.unwrap_or_default();
+        let mut tmp_variables = self.variables.clone();
         tmp_variables.insert(var_name, value);
-        self.variables = Some(tmp_variables)
+        self.variables = tmp_variables
     }
 
     pub fn del_var(&mut self, var_name: String) {
-        let temp_variables = self.variables.clone();
-        let mut tmp_variables = temp_variables.unwrap_or_default();
+        let mut tmp_variables = self.variables.clone();
         tmp_variables.remove(&var_name);
-        self.variables = Some(tmp_variables)
+        self.variables = tmp_variables
     }
 }
 
-pub struct GlobalConfig<'f> {
-    file: &'f str,
+pub struct ConfigHandler {
+    file: String,
     pub config: YamlConfig,
 }
 
-impl GlobalConfig<'_> {
-    pub fn new(file: &str) -> Result<GlobalConfig, Box<dyn std::error::Error>> {
+impl ConfigHandler {
+    pub fn new(file: &str) -> Result<ConfigHandler, Box<dyn std::error::Error>> {
         if !std::path::Path::new(file).exists() {
             std::fs::write(file, "")?;
         }
@@ -116,23 +105,41 @@ impl GlobalConfig<'_> {
         let config = if contents.is_empty() {
             YamlConfig {
                 keepass: None,
-                templates: None,
-                variables: None,
+                templates: Vec::new(),
+                variables: HashMap::new(),
             }
         } else {
             serde_yaml::from_str(&contents)?
         };
 
-        Ok(GlobalConfig { file, config })
+        Ok(ConfigHandler {
+            file: file.to_string(),
+            config,
+        })
     }
 
     pub fn get_file(&self) -> &str {
-        self.file
+        &self.file
     }
 
     pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
         let yaml = serde_yaml::to_string(&self.config)?;
-        std::fs::write(self.file, yaml)?;
+        std::fs::write(&self.file, yaml)?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::app::test_helpers::tests::TestConfig;
+
+    #[test]
+    fn test_loading_empty_file() {
+        let test_config = TestConfig::create_empty_file();
+        std::fs::write(test_config.get_file_path(), "{}").expect("Can write test file");
+
+        let config = test_config.get();
+
+        assert_eq!(config.config.get_templates().len(), 0);
     }
 }
