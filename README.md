@@ -2,14 +2,14 @@
   <img src="kp2f.png" width="100" height="100"/>
 </p>
 
-<p align="center">
-  <a href="https://github.com/Dracks/keepass-2-file/actions/workflows/rust.yml">
-    <img src="https://github.com/Dracks/keepass-2-file/actions/workflows/rust.yml/badge.svg?branch=main" />
-  </a>
-  <a href="https://codecov.io/gh/Dracks/keepass-2-file">
-    <img src="https://codecov.io/gh/Dracks/keepass-2-file/branch/main/graph/badge.svg" />
-  </a>
-</p>
+<div align="center">
+
+[![Build Status](https://github.com/Dracks/keepass-2-file/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/Dracks/keepass-2-file/actions/workflows/rust.yml)
+[![codecov](https://codecov.io/gh/Dracks/keepass-2-file/branch/main/graph/badge.svg)](https://codecov.io/gh/Dracks/keepass-2-file)
+![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20Linux%20%7C%20macOS%20%7C%20Windows-333333.svg?style=flat)
+[![License](https://img.shields.io/badge/license-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html)
+
+</div>
 
 # keepass-2-file
 
