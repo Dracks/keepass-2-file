@@ -3,12 +3,12 @@
 </p>
 
 <p align="center">
-    <span>
-        [![Build Status](https://github.com/Dracks/keepass-2-file/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/Dracks/keepass-2-file/actions/workflows/rust.yml)
-    </span>
-    <span href="https://discord.gg/vapor">
-        [![codecov](https://codecov.io/gh/Dracks/keepass-2-file/branch/main/graph/badge.svg)](https://codecov.io/gh/Dracks/keepass-2-file)
-    </span>
+  <a href="https://github.com/Dracks/keepass-2-file/actions/workflows/rust.yml">
+    <img src="https://github.com/Dracks/keepass-2-file/actions/workflows/rust.yml/badge.svg?branch=main" />
+  </a>
+  <a href="https://codecov.io/gh/Dracks/keepass-2-file">
+    <img src="https://codecov.io/gh/Dracks/keepass-2-file/branch/main/graph/badge.svg" />
+  </a>
 </p>
 
 # keepass-2-file
