@@ -2,11 +2,16 @@
   <img src="kp2f.png" width="100" height="100"/>
 </p>
 
+<p align="center">
+    <span>
+        [![Build Status](https://github.com/Dracks/keepass-2-file/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/Dracks/keepass-2-file/actions/workflows/rust.yml)
+    </span>
+    <span href="https://discord.gg/vapor">
+        [![codecov](https://codecov.io/gh/Dracks/keepass-2-file/branch/main/graph/badge.svg)](https://codecov.io/gh/Dracks/keepass-2-file)
+    </span>
+</p>
+
 # keepass-2-file
-
-[![Build Status](https://github.com/Dracks/keepass-2-file/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/Dracks/keepass-2-file/actions/workflows/rust.yml)
-
-[![codecov](https://codecov.io/gh/Dracks/keepass-2-file/branch/main/graph/badge.svg)](https://codecov.io/gh/Dracks/keepass-2-file)
 
 A command-line tool to generate environment files using KeePass databases as a secure source for sensitive values.
 
