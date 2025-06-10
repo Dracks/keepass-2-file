@@ -167,7 +167,7 @@ DB_USER={{keepass field=username "PostgreSQL"}}
 DB_PASSWORD={{keepass "PostgreSQL"}}
 
 # API Keys
-API_KEY={{stringify (keepass "APIs" "ExternalService")}}
+API_KEY={{stringify (keepass "APIs/ExternalService")}}
 
 # Using a local variable
 EMAIL={{stringify email}}
