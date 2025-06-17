@@ -32,50 +32,50 @@ impl ErrorCode {
         match self {
             ErrorCode::GroupFound(path) => {
                 io.error(format!(
-                    "{}: Found a group, not an entry: {}",
+                    "{}: Cannot access entry '{}' because it is a group, not an individual entry. Please specify a path to an entry within this group.",
                     prefix.error,
                     path.join("/")
                 ));
             }
             ErrorCode::MissingEntry(path) => {
                 io.error(format!(
-                    "{}: Entry not found: {}",
+                    "{}: Entry '{}' not found in the KeePass database. Please verify the path is correct and the entry exists.",
                     prefix.error,
                     path.join("/")
                 ));
             }
             ErrorCode::MissingField(path, field) => io.error(format!(
-                "{}: Field not found: {} in path: {}",
+                "{}: Field '{}' not found in entry '{}'. Please check that this field exists or use a different field name.",
                 prefix.error,
                 field,
                 path.join("/")
             )),
             ErrorCode::NoPassword(path) => {
                 io.error(format!(
-                    "{}: Entry doesn't contain a password: {}",
+                    "{}: Entry '{}' does not contain a password field. This entry may not be configured with password data.",
                     prefix.error,
                     path.join("/")
                 ));
             }
             ErrorCode::NoUsername(path) => {
                 io.error(format!(
-                    "{}: Entry doesn't contain an username: {}",
+                    "{}: Entry '{}' does not contain a username field. This entry may not be configured with username data.",
                     prefix.error,
                     path.join("/")
                 ));
             }
             ErrorCode::NoUrl(path) => {
                 io.error(format!(
-                    "{}: Entry doesn't contain an url: {}",
+                    "{}: Entry '{}' does not contain a URL field. This entry may not be configured with URL data.",
                     prefix.error,
                     path.join("/")
                 ));
             }
             ErrorCode::MissingPath => {
-                io.error(format!("{}: Helper is not correctly used", prefix.error))
+                io.error(format!("{}: KeePass helper function called without required path parameter. Please provide a valid entry path.", prefix.error))
             }
             ErrorCode::DeprecatedSelectorPath(path) => io.error(format!(
-                "{}: Deprecated entry selector, please use \"{}\" format",
+                "{}: Using deprecated entry selector format. Please use the standard path format: '{}'",
                 prefix.warning,
                 path.join("/")
             )),
