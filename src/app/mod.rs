@@ -71,9 +71,10 @@ impl ErrorCode {
                     path.join("/")
                 ));
             }
-            ErrorCode::MissingPath => {
-                io.error(format!("{}: KeePass helper function called without required path parameter.", prefix.error))
-            }
+            ErrorCode::MissingPath => io.error(format!(
+                "{}: KeePass helper function called without required path parameter.",
+                prefix.error
+            )),
             ErrorCode::DeprecatedPathFormat(path) => io.error(format!(
                 "{}: Using deprecated entry path format. Please use the standard path format: '{}'",
                 prefix.warning,
@@ -660,10 +661,13 @@ mod tests {
         println!("{:?}", errors);
         assert_eq!(errors.len(), 5);
         assert!(errors[0].contains("0-with-errors"));
-        assert_eq!(errors[1], "error: Entry not found: invalid/entry");
+        assert_eq!(
+            errors[1],
+            "error: Entry 'invalid/entry' not found in the KeePass database."
+        );
         assert_eq!(
             errors[2],
-            "error: Field not found: whatever in path: group1/test2"
+            "error: Field 'whatever' not found in entry 'group1/test2'."
         );
         assert!(errors[3].contains("1-with-other-errors"));
     }
@@ -696,24 +700,36 @@ mod tests {
         assert_eq!(errors.len(), 9);
         assert_eq!(
             errors[1],
-            "warning: Deprecated entry selector, please use \"group1/test2\" format"
+            "warning: Using deprecated entry path format. Please use the standard path format: 'group1/test2'"
         );
-        assert_eq!(errors[2], "error: Entry not found: invalid/entry");
+        assert_eq!(
+            errors[2],
+            "error: Entry 'invalid/entry' not found in the KeePass database."
+        );
         assert_eq!(
             errors[3],
-            "error: Field not found: whatever in path: group1/test2"
+            "error: Field 'whatever' not found in entry 'group1/test2'."
         );
         assert_eq!(
             errors[4],
-            "error: Entry doesn't contain an username: missing"
+            "error: Entry 'missing' does not contain a username field."
         );
-        assert_eq!(errors[5], "error: Entry doesn't contain an url: missing");
+        assert_eq!(
+            errors[5],
+            "error: Entry 'missing' does not contain a URL field."
+        );
         assert_eq!(
             errors[6],
-            "error: Entry doesn't contain a password: missing"
+            "error: Entry 'missing' does not contain a password field."
         );
-        assert_eq!(errors[7], "error: Helper is not correctly used");
-        assert_eq!(errors[8], "error: Found a group, not an entry: group1");
+        assert_eq!(
+            errors[7],
+            "error: KeePass helper function called without required path parameter."
+        );
+        assert_eq!(
+            errors[8],
+            "error: Cannot access entry 'group1' because it is a group, not an individual entry."
+        );
     }
 
     #[test]
