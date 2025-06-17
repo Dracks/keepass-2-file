@@ -13,7 +13,7 @@ pub enum ErrorCode {
     NoPassword(Vec<String>),
     NoUsername(Vec<String>),
     NoUrl(Vec<String>),
-    DeprecatedSelectorPath(Vec<String>),
+    DeprecatedPathFormat(Vec<String>),
 }
 
 #[derive(Clone)]

@@ -67,7 +67,7 @@ impl ErrorCode {
             ErrorCode::NoUsername(_) => NO_USERNAME_ERROR.into(),
             ErrorCode::NoUrl(_) => NO_URL_ERROR.into(),
             ErrorCode::MissingPath => NO_ENTRY_CONFIGURED.into(),
-            ErrorCode::DeprecatedSelectorPath(_) => "Unused".into(),
+            ErrorCode::DeprecatedPathFormat(_) => "Unused".into(),
         }
     }
 }
@@ -133,7 +133,7 @@ impl HelperDef for KeepassHelper<'_> {
             convert_vecs(args[0].split("/").collect())
         } else {
             self.errors
-                .register_error(ErrorCode::DeprecatedSelectorPath(args.clone()));
+                .register_error(ErrorCode::DeprecatedPathFormat(args.clone()));
             args
         };
         let field = extract_field_type(h.hash_get("field"));
