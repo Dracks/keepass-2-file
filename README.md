@@ -1,7 +1,18 @@
-# keepass-2-file
-[![Build Status](https://github.com/Dracks/keepass-2-file/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/Dracks/keepass-2-file/actions/workflows/rust.yml)
+<p align="center">
+  <img src="kp2f.png" width="100" height="100"/>
+</p>
 
+<div align="center">
+
+[![Build Status](https://github.com/Dracks/keepass-2-file/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/Dracks/keepass-2-file/actions/workflows/rust.yml)
 [![codecov](https://codecov.io/gh/Dracks/keepass-2-file/branch/main/graph/badge.svg)](https://codecov.io/gh/Dracks/keepass-2-file)
+![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20macOS%20%7C%20Windows-333333.svg?style=flat)
+[![License](https://img.shields.io/badge/license-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html)
+[![GitHub release](https://img.shields.io/github/v/release/Dracks/keepass-2-file?include_prereleases&label=release)](https://github.com/Dracks/keepass-2-file/releases)
+
+</div>
+
+# keepass-2-file
 
 A command-line tool to generate environment files using KeePass databases as a secure source for sensitive values.
 
@@ -16,6 +27,7 @@ A command-line tool to generate environment files using KeePass databases as a s
 ## Installation
 
 ### From brew
+
 ```bash
 # will download and build it from code installing rust if necessary
 brew install dracks/homebrew-dracks/keepass-2-file
@@ -25,6 +37,7 @@ brew install dracks/homebrew-dracks/keepass-2-file-bin
 ```
 
 ### From the source code
+
 ```bash
 git clone git@github.com:Dracks/keepass-2-file
 cd keepass-2-file
@@ -104,6 +117,7 @@ keepass-2-file build-all
 **note**: the adding of files support the same flat -r/--relative-to-input to not specify the full path two times
 
 ### Using the global variables
+
 Having global variables can be useful in multiple cases, but one good example is to have an e-mail, in the .env for having your own e-mail when testing sending e-mails, and not spam your team e-mail list. Another use can be to have some configurations, that you wish to be able to disable for your machine, but other collegues needs to have it enable/or customize it
 
 ```bash
@@ -119,22 +133,26 @@ keepass-2-file config delete-variables var1 var2
 The template uses Handlebars syntax with custom helpers to access KeePass entries:
 
 ### Basic Password Retrieval
+
 ```handlebars
 DB_PASSWORD={{keepass "Entry"}}
 ```
 
 ### Accessing Specific Fields
+
 ```handlebars
 DB_USERNAME={{keepass field=username "Entry"}}
 DB_URL={{keepass field=url "Entry"}}
 ```
 
 ### Additional Attributes
+
 ```handlebars
 CUSTOM_FIELD={{keepass field=field-name "Entry"}}
 ```
 
 ### String Escaping
+
 ```handlebars
 ESCAPED_VALUE={{stringify (keepass "Entry")}}
 ```
