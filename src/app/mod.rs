@@ -429,8 +429,6 @@ mod tests {
 
     use clap::Parser;
     use logs_prefix::test::OverrideColorize;
-    use test_helpers::tests::{IODebug, TestConfig};
-
     use std::fs;
     use test_helpers::tests::{IODebug, TestConfig};
     use tools::normalize_separators;

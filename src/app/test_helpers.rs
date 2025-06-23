@@ -1,6 +1,7 @@
 #[cfg(test)]
 pub mod tests {
     use super::super::config::ConfigHandler;
+    use super::super::tools::normalize_separators;
     use super::super::IOLogs;
     use std::cell::RefCell;
     use std::path::Path;
