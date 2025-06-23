@@ -1,7 +1,6 @@
 #[cfg(test)]
 pub mod tests {
-    use super::super::config::GlobalConfig;
-    use super::super::tools::normalize_separators;
+    use super::super::config::ConfigHandler;
     use super::super::IOLogs;
     use std::cell::RefCell;
     use std::path::Path;
@@ -16,8 +15,8 @@ pub mod tests {
             self.config_file.clone()
         }
 
-        pub fn get(&self) -> GlobalConfig {
-            GlobalConfig::new(&self.config_file)
+        pub fn get(&self) -> ConfigHandler {
+            ConfigHandler::new(&self.config_file)
                 .expect("Failed to load temp config created by TestConfig")
         }
 
@@ -169,9 +168,16 @@ variables:
         }
     }
 
+    #[derive(Clone)]
+    pub struct StdInPromp {
+        pub msg: String,
+        pub secure: bool,
+    }
+
     pub struct IODebug {
         stdouts: RefCell<Vec<String>>,
         stdins: RefCell<Vec<String>>,
+        stdins_promp: RefCell<Vec<StdInPromp>>,
         stderrs: RefCell<Vec<String>>,
     }
 
@@ -179,6 +185,7 @@ variables:
         pub fn new() -> IODebug {
             IODebug {
                 stdins: RefCell::new(Vec::new()),
+                stdins_promp: RefCell::new(Vec::new()),
                 stderrs: RefCell::new(Vec::new()),
                 stdouts: RefCell::new(Vec::new()),
             }
@@ -187,6 +194,10 @@ variables:
         pub fn add_stdin(&mut self, input: String) -> &IODebug {
             self.stdins.borrow_mut().push(input);
             self
+        }
+
+        pub fn get_stdin_promps(&self) -> Vec<StdInPromp> {
+            self.stdins_promp.borrow().clone()
         }
 
         pub fn get_logs(&self) -> Vec<String> {
@@ -203,14 +214,15 @@ variables:
             self.stdouts.borrow_mut().push(str);
         }
 
-        fn read(&self, str: String, secure: bool) -> std::io::Result<String> {
+        fn read(&self, msg: String, secure: bool) -> std::io::Result<String> {
             let mut stdins = self.stdins.borrow_mut();
-            if !stdins.is_empty() {
-                let value = stdins.remove(0);
-                Ok(value)
-            } else {
-                panic!("Consuming stdin when is empty. prompt: {str} secure: {secure}");
-            }
+            self.stdins_promp
+                .borrow_mut()
+                .push(StdInPromp { msg, secure });
+            assert!(!stdins.is_empty());
+
+            let value = stdins.remove(0);
+            Ok(value)
         }
 
         fn error(&self, str: String) {

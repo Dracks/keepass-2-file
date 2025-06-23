@@ -6,11 +6,14 @@ pub trait ErrorRecord: Send + Sync {
 
 #[derive(Clone, Debug)]
 pub enum ErrorCode {
+    MissingPath,
+    GroupFound(Vec<String>),
     MissingEntry(Vec<String>),
     MissingField(Vec<String>, String),
     NoPassword(Vec<String>),
     NoUsername(Vec<String>),
     NoUrl(Vec<String>),
+    DeprecatedPathFormat(Vec<String>),
 }
 
 #[derive(Clone)]

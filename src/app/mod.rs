@@ -1,5 +1,5 @@
 use commands::{Cli, Commands, ConfigCommands, NameOrPath};
-use config::GlobalConfig;
+use config::ConfigHandler;
 use errors_and_warnings::{ErrorCode, HelperErrors};
 use handlebars::{build_handlebars, LibHandlebars};
 use keepass::{Database, DatabaseKey};
@@ -10,10 +10,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use crate::app::logs_prefix::LOG_PREFIX;
+
 pub mod commands;
 pub mod config;
 mod errors_and_warnings;
 pub mod handlebars;
+mod logs_prefix;
 mod test_helpers;
 mod tools;
 
@@ -25,30 +28,58 @@ pub trait IOLogs {
 
 impl ErrorCode {
     fn to_io_logs(&self, io: &dyn IOLogs) {
+        let prefix = LOG_PREFIX.clone();
         match self {
+            ErrorCode::GroupFound(path) => {
+                io.error(format!(
+                    "{}: Cannot access entry '{}' because it is a group, not an individual entry.",
+                    prefix.error,
+                    path.join("/")
+                ));
+            }
             ErrorCode::MissingEntry(path) => {
-                io.error(format!("Entry not found: {}", path.join("/")));
+                io.error(format!(
+                    "{}: Entry '{}' not found in the KeePass database.",
+                    prefix.error,
+                    path.join("/")
+                ));
             }
             ErrorCode::MissingField(path, field) => io.error(format!(
-                "Field not found: {} in path: {}",
+                "{}: Field '{}' not found in entry '{}'.",
+                prefix.error,
                 field,
                 path.join("/")
             )),
             ErrorCode::NoPassword(path) => {
                 io.error(format!(
-                    "Entry doesn't contain a password: {}",
+                    "{}: Entry '{}' does not contain a password field.",
+                    prefix.error,
                     path.join("/")
                 ));
             }
             ErrorCode::NoUsername(path) => {
                 io.error(format!(
-                    "Entry doesn't contain an username: {}",
+                    "{}: Entry '{}' does not contain a username field.",
+                    prefix.error,
                     path.join("/")
                 ));
             }
             ErrorCode::NoUrl(path) => {
-                io.error(format!("Entry doesn't contain an url: {}", path.join("/")));
+                io.error(format!(
+                    "{}: Entry '{}' does not contain a URL field.",
+                    prefix.error,
+                    path.join("/")
+                ));
             }
+            ErrorCode::MissingPath => io.error(format!(
+                "{}: KeePass helper function called without required path parameter.",
+                prefix.error
+            )),
+            ErrorCode::DeprecatedPathFormat(path) => io.error(format!(
+                "{}: Using deprecated entry path format. Please use the standard path format: '{}'",
+                prefix.warning,
+                path.join("/")
+            )),
         }
     }
 }
@@ -162,7 +193,7 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
         .unwrap_or_else(|| format!("{}/.config/keepass-2-file.yaml", home));
 
     // Load and parse the configuration file
-    let mut config = GlobalConfig::new(&config_path)?;
+    let mut config = ConfigHandler::new(&config_path)?;
 
     match args.command {
         Commands::Config(config_command) => match config_command {
@@ -397,6 +428,9 @@ mod tests {
     use super::*;
 
     use clap::Parser;
+    use logs_prefix::test::OverrideColorize;
+    use test_helpers::tests::{IODebug, TestConfig};
+
     use std::fs;
     use test_helpers::tests::{IODebug, TestConfig};
     use tools::normalize_separators;
@@ -606,10 +640,19 @@ mod tests {
         if let Err(error) = ret {
             assert_eq!(error.to_string(),"Failed to render template: Error rendering \"test_resources/file-with-error\" line 2, col 15: Helper not found keepass-2-file")
         }
+        let stdins_promps = io.get_stdin_promps();
+        assert_eq!(stdins_promps.len(), 1);
+        assert_eq!(stdins_promps[0].secure, true);
+        assert_eq!(
+            stdins_promps[0].msg,
+            "Enter the KeePass database password: "
+        );
     }
 
     #[test]
     fn test_rendering_templates_with_invalid_data() {
+        let _colorized = OverrideColorize::new(false);
+
         let mut io = IODebug::new();
         let test = TestConfig::create_with_errors();
         io.add_stdin("MyTestPass".to_string());
@@ -629,9 +672,75 @@ mod tests {
         println!("{:?}", errors);
         assert_eq!(errors.len(), 5);
         assert!(errors[0].contains("0-with-errors"));
-        assert_eq!(errors[1], "Entry not found: invalid/entry");
-        assert_eq!(errors[2], "Field not found: whatever in path: group1/test2");
+        assert_eq!(
+            errors[1],
+            "error: Entry 'invalid/entry' not found in the KeePass database."
+        );
+        assert_eq!(
+            errors[2],
+            "error: Field 'whatever' not found in entry 'group1/test2'."
+        );
         assert!(errors[3].contains("1-with-other-errors"));
+    }
+
+    #[test]
+    fn test_render_all_errors() {
+        let _colorized = OverrideColorize::new(false);
+
+        let mut io = IODebug::new();
+        io.add_stdin("MyTestPass".to_string());
+
+        let result = execute(
+            Cli::parse_from([
+                "kp2f",
+                "build",
+                "-k",
+                "./test_resources/test_db.kdbx",
+                "./test_resources/.env.all-errors",
+                "-r",
+                "./tmp/file_with_errors",
+            ]),
+            &io,
+        );
+
+        println!("{:?}", result);
+        assert!(result.is_ok());
+
+        let errors = io.get_errors();
+        println!("{:?}", errors);
+        assert_eq!(errors.len(), 9);
+        assert_eq!(
+            errors[1],
+            "warning: Using deprecated entry path format. Please use the standard path format: 'group1/test2'"
+        );
+        assert_eq!(
+            errors[2],
+            "error: Entry 'invalid/entry' not found in the KeePass database."
+        );
+        assert_eq!(
+            errors[3],
+            "error: Field 'whatever' not found in entry 'group1/test2'."
+        );
+        assert_eq!(
+            errors[4],
+            "error: Entry 'missing' does not contain a username field."
+        );
+        assert_eq!(
+            errors[5],
+            "error: Entry 'missing' does not contain a URL field."
+        );
+        assert_eq!(
+            errors[6],
+            "error: Entry 'missing' does not contain a password field."
+        );
+        assert_eq!(
+            errors[7],
+            "error: KeePass helper function called without required path parameter."
+        );
+        assert_eq!(
+            errors[8],
+            "error: Cannot access entry 'group1' because it is a group, not an individual entry."
+        );
     }
 
     #[test]

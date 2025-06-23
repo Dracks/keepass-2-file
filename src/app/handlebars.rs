@@ -18,6 +18,7 @@ const NOT_FOUND_ERROR: &str = "<Not found keepass entry>";
 const NO_PASSWORD_ERROR: &str = "<No password found in entry>";
 const NO_USERNAME_ERROR: &str = "<No username found in entry>";
 const NO_URL_ERROR: &str = "<No URL found in entry>";
+const NO_ENTRY_CONFIGURED: &str = "<No entry was configured>";
 const ATTRIBUTE_NOT_FOUND_ERROR: &str = "<Attribute ({field-name}) not found in entry>";
 
 #[derive(Debug)]
@@ -57,6 +58,7 @@ fn extract_field_type(field_path: Option<&PathAndJson>) -> FieldSelect {
 impl ErrorCode {
     fn to_hb_entry(&self) -> String {
         match self {
+            ErrorCode::GroupFound(_) => NOT_FOUND_ERROR.into(),
             ErrorCode::MissingEntry(_) => NOT_FOUND_ERROR.into(),
             ErrorCode::MissingField(_, field_name) => {
                 ATTRIBUTE_NOT_FOUND_ERROR.replace("{field-name}", field_name.as_str())
@@ -64,16 +66,22 @@ impl ErrorCode {
             ErrorCode::NoPassword(_) => NO_PASSWORD_ERROR.into(),
             ErrorCode::NoUsername(_) => NO_USERNAME_ERROR.into(),
             ErrorCode::NoUrl(_) => NO_URL_ERROR.into(),
+            ErrorCode::MissingPath => NO_ENTRY_CONFIGURED.into(),
+            ErrorCode::DeprecatedPathFormat(_) => "Unused".into(),
         }
     }
 }
 
 impl KeepassHelper<'_> {
-    fn extract_entry(&self, path: Vec<&str>, field: FieldSelect) -> Result<String, ErrorCode> {
-        let path_str: Vec<String> = convert_vecs(path.clone());
+    fn extract_entry(
+        &self,
+        path_str: Vec<String>,
+        field: FieldSelect,
+    ) -> Result<String, ErrorCode> {
+        let path: Vec<&str> = path_str.iter().map(|x| x.as_str()).collect::<Vec<&str>>();
         if let Some(node) = self.db.root.get(&path) {
             match node {
-                NodeRef::Group(_) => Err(ErrorCode::MissingEntry(path_str)),
+                NodeRef::Group(_) => Err(ErrorCode::GroupFound(path_str)),
                 NodeRef::Entry(entry) => match field {
                     FieldSelect::Password => match entry.get_password() {
                         Some(pwd) => Ok(pwd.into()),
@@ -115,7 +123,19 @@ impl HelperDef for KeepassHelper<'_> {
             .iter()
             .map(|x| x.render())
             .collect::<Vec<String>>();
-        let path = args.iter().map(|x| x.as_str()).collect::<Vec<&str>>();
+        if args.is_empty() {
+            self.errors.register_error(ErrorCode::MissingPath);
+            return Ok(ScopedJson::Derived(JsonValue::from(
+                ErrorCode::MissingPath.to_hb_entry(),
+            )));
+        }
+        let path = if args.len() == 1 {
+            convert_vecs(args[0].split("/").collect())
+        } else {
+            self.errors
+                .register_error(ErrorCode::DeprecatedPathFormat(args.clone()));
+            args
+        };
         let field = extract_field_type(h.hash_get("field"));
         match self.extract_entry(path, field) {
             Ok(content) => Ok(ScopedJson::from(JsonValue::from(content))),
