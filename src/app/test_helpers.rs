@@ -20,18 +20,6 @@ pub mod tests {
                 .expect("Failed to load temp config created by TestConfig")
         }
 
-        pub fn create_super_config() -> TestConfig {
-            let uuid = uuid::Uuid::new_v4();
-            let config_file = format!("test_resources/tmp/config_{}.yml", uuid);
-            std::fs::create_dir_all("test_resources/tmp")
-                .expect("Unable to create temporary test_resources/tmp directory");
-
-            TestConfig {
-                config_file,
-                auto_clean: false,
-            }
-        }
-
         fn create_config(content: Option<String>) -> TestConfig {
             let uuid = uuid::Uuid::new_v4();
             let config_file = format!("test_resources/tmp/config_{}.yml", uuid);

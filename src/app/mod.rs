@@ -588,8 +588,7 @@ mod tests {
 
     #[test]
     fn test_adding_existing_template_will_replace_it() {
-        let mut test = TestConfig::create_super_config();
-        test.disable_auto_clean();
+        let test = TestConfig::create_with_vars();
         let io = IODebug::new();
         let result = execute(
             Cli {

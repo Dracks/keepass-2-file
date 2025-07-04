@@ -2,7 +2,7 @@ use std::sync::LazyLock;
 
 use colored::Colorize;
 
-pub static LOG_PREFIX: LazyLock<LogPrefix> = LazyLock::new(LogPrefix::new);
+pub static LOG_PREFIX: LazyLock<LogPrefix> = LazyLock::new(|| LogPrefix::new(true));
 
 #[derive(Clone)]
 pub struct LogPrefix {
@@ -11,11 +11,20 @@ pub struct LogPrefix {
 }
 
 impl LogPrefix {
-    fn new() -> Self {
-        LogPrefix {
-            error: "error".red().to_string(),
-            warning: "warning".yellow().to_string(),
-        }
+    pub fn new(color: bool) -> Self {
+        let error = if color {
+            "error".red().to_string()
+        } else {
+            "error".to_string()
+        };
+
+        let warning = if color {
+            "warning".yellow().to_string()
+        } else {
+            "warning".to_string()
+        };
+
+        LogPrefix { error, warning }
     }
 }
 
@@ -42,8 +51,7 @@ pub mod test {
 
     #[test]
     fn test_log_prefix_colorized() {
-        let _colorized = OverrideColorize::new(true);
-        let subject = LogPrefix::new();
+        let subject = LogPrefix::new(true);
 
         assert_eq!(subject.warning, "\u{1b}[33mwarning\u{1b}[0m");
         assert_eq!(subject.error, "\u{1b}[31merror\u{1b}[0m")
@@ -51,8 +59,7 @@ pub mod test {
 
     #[test]
     fn test_log_prefix_not_colorized() {
-        let _colorized = OverrideColorize::new(false);
-        let subject = LogPrefix::new();
+        let subject = LogPrefix::new(false);
 
         assert_eq!(subject.error, "error");
         assert_eq!(subject.warning, "warning");
