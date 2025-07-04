@@ -202,4 +202,4 @@ cargo build --release
 
 # Similar projects
 
-- [environ](https://github.com/double-labs/environ) Generate .env files from secrets stored in Google Cloud Storage
+- [environ](https://github.com/double-labs/environ) Generate .env files from secrets stored in the cloud
