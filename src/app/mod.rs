@@ -963,17 +963,4 @@ mod tests {
         assert!(file_contents.contains("SOMETHING=\"is a variable\""));
         assert!(file_contents.contains("EMAIL=\"j@k2.com\""));
     }
-
-    #[test]
-    fn test_fix_windows() {
-        let template = String::from("./test_resources/.env.example");
-        println!("{}", template);
-
-        let original_path = Path::new(&template);
-        println!("{:?}", original_path);
-        let absolute_path = original_path.canonicalize();
-        println!("{:?}", absolute_path);
-
-        assert!(false)
-    }
 }
