@@ -118,17 +118,13 @@ fn get_absolute_path(path: String) -> String {
     let absolute_path = original_path.canonicalize();
 
     match absolute_path {
-        Ok(absoluted) => return String::from(absoluted.to_str().unwrap()),
-        Err(_e) => {
-            return String::from(
-                std::env::current_dir()
-                    .unwrap()
-                    .join(original_path)
-                    .to_str()
-                    .unwrap()
-                    .to_string(),
-            );
-        }
+        Ok(absoluted) => String::from(absoluted.to_str().unwrap()),
+        Err(_e) => std::env::current_dir()
+            .unwrap()
+            .join(original_path)
+            .to_str()
+            .unwrap()
+            .to_string(),
     }
 }
 

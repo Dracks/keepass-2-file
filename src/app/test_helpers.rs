@@ -29,7 +29,7 @@ pub mod tests {
             std::fs::create_dir_all("test_resources/tmp")
                 .expect("Unable to create temporary test_resources/tmp directory");
 
-            if let Ok(config) = GlobalConfig::new(&config_file) {
+            /* if let Ok(config) = GlobalConfig::new(&config_file) {
                 let mut config: GlobalConfig<'_> = config;
                 config.config.add_template(
                     Some("something".into()),
@@ -60,7 +60,7 @@ pub mod tests {
                         + &normalize_separators("/test_resources/tmp/.env2"),
                 );
                 let _ = config.save();
-            }
+            } */
 
             TestConfig {
                 config_file,

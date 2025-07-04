@@ -7,5 +7,5 @@ where
 
 #[allow(dead_code)]
 pub fn normalize_separators(path: &str) -> String {
-    path.replace(['/', '\\'], &std::path::MAIN_SEPARATOR.to_string())
+    path.replace(['/', '\\'], std::path::MAIN_SEPARATOR_STR)
 }
