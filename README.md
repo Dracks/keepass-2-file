@@ -199,3 +199,7 @@ cargo test
 ```bash
 cargo build --release
 ```
+
+# Similar projects
+
+- [environ](https://github.com/double-labs/environ) Generate .env files from secrets stored in the cloud
