@@ -588,7 +588,7 @@ mod tests {
 
     #[test]
     fn test_adding_existing_template_will_replace_it() {
-        let test = TestConfig::create_with_vars();
+        let test = TestConfig::create_normalized();
         let io = IODebug::new();
         let result = execute(
             Cli {
@@ -609,8 +609,9 @@ mod tests {
         let out_config = test.get();
 
         let templates = out_config.config.get_templates();
-        assert_eq!(templates.len(), 3);
-        assert_eq!(templates[2].name, Some(String::from("New name")));
+        dbg!(&templates);
+        assert_eq!(templates.len(), 2);
+        assert_eq!(templates[0].name, Some(String::from("New name")));
     }
 
     #[test]

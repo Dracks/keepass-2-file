@@ -1,6 +1,8 @@
 #[cfg(test)]
 pub mod tests {
+    use super::super::commands::{Cli, Commands, ConfigCommands};
     use super::super::config::ConfigHandler;
+    use super::super::execute;
     use super::super::tools::normalize_separators;
     use super::super::IOLogs;
     use std::cell::RefCell;
@@ -55,6 +57,51 @@ templates:
         "
             );
             TestConfig::create_config(Some(test_config))
+        }
+
+        pub fn create_normalized() -> TestConfig {
+            let current_path = std::env::current_dir().unwrap();
+            let current_path_string = current_path.to_str().unwrap();
+
+            let test_config = format!(
+                "keepass: {current_path_string}/test_resources/test_db.kdbx
+templates:
+        "
+            );
+
+            let test = TestConfig::create_config(Some(test_config));
+            let io = IODebug::new();
+            let result1 = execute(
+                Cli {
+                    command: Commands::Config(ConfigCommands::AddFile {
+                        name: Some(String::from("Test File 1")),
+                        template: String::from("./test_resources/.env.example"),
+                        output: String::from("./test_resources/tmp/.env"),
+                        relative_to_input: false,
+                    }),
+                    config: Some(String::from(test.get_file_path())),
+                },
+                &io,
+            );
+
+            assert!(result1.is_ok());
+
+            let result2 = execute(
+                Cli {
+                    command: Commands::Config(ConfigCommands::AddFile {
+                        name: Some(String::from("Test File 2")),
+                        template: String::from("./test_resources/.env.example"),
+                        output: String::from("./test_resources/tmp/.env2"),
+                        relative_to_input: false,
+                    }),
+                    config: Some(String::from(test.get_file_path())),
+                },
+                &io,
+            );
+
+            assert!(result2.is_ok());
+
+            test
         }
 
         #[allow(dead_code)]
