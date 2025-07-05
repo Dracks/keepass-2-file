@@ -51,6 +51,7 @@ pub mod test {
 
     #[test]
     fn test_log_prefix_colorized() {
+        control::set_override(true);
         let subject = LogPrefix::new(true);
 
         assert_eq!(subject.warning, "\u{1b}[33mwarning\u{1b}[0m");
