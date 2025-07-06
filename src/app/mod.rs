@@ -609,7 +609,6 @@ mod tests {
         let out_config = test.get();
 
         let templates = out_config.config.get_templates();
-        dbg!(&templates);
         assert_eq!(templates.len(), 2);
         assert_eq!(templates[0].name, Some(String::from("New name")));
     }
