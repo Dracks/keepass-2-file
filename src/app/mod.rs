@@ -147,12 +147,12 @@ fn render_and_save_template(
 
     let rendered = handlebars
         .render(&name, vars)
-        .map_err(|e| format!("Failed to render template: {}", e))?;
+        .map_err(|e| format!("Failed to render template: {e}"))?;
 
     std::fs::write(&output_path, rendered)
-        .map_err(|e| format!("Failed to write output file {}: {}", output_path, e))?;
+        .map_err(|e| format!("Failed to write output file {output_path}: {e}"))?;
 
-    io.log(format!("file written: {}", output_path));
+    io.log(format!("file written: {output_path}"));
     Ok(())
 }
 
@@ -185,7 +185,7 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
         .to_string();
     let config_path = args
         .config
-        .unwrap_or_else(|| format!("{}/.config/keepass-2-file.yaml", home));
+        .unwrap_or_else(|| format!("{home}/.config/keepass-2-file.yaml"));
 
     // Load and parse the configuration file
     let mut config = ConfigHandler::new(&config_path)?;
@@ -196,13 +196,12 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                 let path = Path::new(&url);
                 if path.is_absolute() {
                     if path.exists() {
-                        io.log(format!("Setting default KeePass DB URL: {:?}", url));
+                        io.log(format!("Setting default KeePass DB URL: {url:?}"));
                         config.config.keepass = Some(url);
                         config.save()?;
                     } else {
                         io.error(format!(
-                            "The following file doesn't exist or it can't be accessed: {:?}",
-                            url
+                            "The following file doesn't exist or it can't be accessed: {url:?}",
                         ));
                     }
                 } else {
@@ -210,7 +209,7 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                 }
             }
             ConfigCommands::GetKpDb => match config.config.keepass {
-                Some(url) => io.log(format!("Current file is {}", url)),
+                Some(url) => io.log(format!("Current file is {url}")),
                 None => io.log(format!(
                     "The current configuration '{}' doesn't contain a default keepass db",
                     config.get_file()
@@ -247,7 +246,7 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
             ConfigCommands::Prune => {
                 let templates = config.config.get_templates();
                 for template in templates {
-                    io.log(format!("{:?}", template));
+                    io.log(format!("{template:?}"));
                     if !Path::new(&template.template_path).exists() {
                         io.log(format!(
                             "Template {} does not exist, removing from config",
@@ -311,8 +310,8 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
             relative_to_input,
             vars,
         } => {
-            io.log(format!("Building template file: {}", template));
-            io.log(format!("KeePass file: {:?}", keepass));
+            io.log(format!("Building template file: {template}"));
+            io.log(format!("KeePass file: {keepass:?}"));
             let mut variables = config.config.get_vars();
             variables.extend(parse_variables(io, vars));
 
@@ -399,7 +398,7 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                             format!("{} => {}", template.template_path, template.output_path)
                         }
                     };
-                    io.log(format!("Skipping template {} because of: {:?}", name, err));
+                    io.log(format!("Skipping template {name} because of: {err:?}"));
                 }
                 let errors = errors_and_warnings.get_errors();
                 if !errors.is_empty() {
