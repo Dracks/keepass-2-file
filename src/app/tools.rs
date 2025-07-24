@@ -4,3 +4,8 @@ where
 {
     v.into_iter().map(Into::into).collect()
 }
+
+#[allow(dead_code)]
+pub fn normalize_separators(path: &str) -> String {
+    path.replace(['/', '\\'], std::path::MAIN_SEPARATOR_STR)
+}
