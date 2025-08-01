@@ -1,6 +1,9 @@
 #[cfg(test)]
 pub mod tests {
+    use super::super::commands::{Cli, Commands, ConfigCommands};
     use super::super::config::ConfigHandler;
+    use super::super::execute;
+    use super::super::tools::normalize_separators;
     use super::super::IOLogs;
     use std::cell::RefCell;
 
@@ -36,22 +39,69 @@ pub mod tests {
 
         pub fn create() -> TestConfig {
             let current_path = std::env::current_dir().unwrap();
-            let current_path_display = current_path.display();
+            let current_path_string = current_path.to_str().unwrap();
+            let test_path = current_path_string.to_owned()
+                + &normalize_separators("/test_resources/.env.example");
 
             let test_config = format!(
-                "keepass: {current_path_display}/test_resources/test_db.kdbx
+                "keepass: {current_path_string}/test_resources/test_db.kdbx
 templates:
-- template_path: {current_path_display}/some-missing-file
+- template_path: {current_path_string}/some-missing-file
   output_path: something
-- template_path: {current_path_display}/test_resources/.env.example
-  output_path: {current_path_display}/test_resources/tmp/.env
+- template_path: {test_path}
+  output_path: {current_path_string}/test_resources/tmp/.env
   name: valid
-- template_path: {current_path_display}/test_resources/.env.example
-  output_path: {current_path_display}/test_resources/tmp/.env2
+- template_path: {current_path_string}/test_resources/.env.example
+  output_path: {current_path_string}/test_resources/tmp/.env2
   name: other
         "
             );
             TestConfig::create_config(Some(test_config))
+        }
+
+        pub fn create_normalized() -> TestConfig {
+            let current_path = std::env::current_dir().unwrap();
+            let current_path_string = current_path.to_str().unwrap();
+
+            let test_config = format!(
+                "keepass: {current_path_string}/test_resources/test_db.kdbx
+templates:
+        "
+            );
+
+            let test = TestConfig::create_config(Some(test_config));
+            let io = IODebug::new();
+            let result1 = execute(
+                Cli {
+                    command: Commands::Config(ConfigCommands::AddFile {
+                        name: Some(String::from("Test File 1")),
+                        template: String::from("./test_resources/.env.example"),
+                        output: String::from("./test_resources/tmp/.env"),
+                        relative_to_input: false,
+                    }),
+                    config: Some(String::from(test.get_file_path())),
+                },
+                &io,
+            );
+
+            assert!(result1.is_ok());
+
+            let result2 = execute(
+                Cli {
+                    command: Commands::Config(ConfigCommands::AddFile {
+                        name: Some(String::from("Test File 2")),
+                        template: String::from("./test_resources/.env.example"),
+                        output: String::from("./test_resources/tmp/.env2"),
+                        relative_to_input: false,
+                    }),
+                    config: Some(String::from(test.get_file_path())),
+                },
+                &io,
+            );
+
+            assert!(result2.is_ok());
+
+            test
         }
 
         #[allow(dead_code)]
