@@ -3,7 +3,7 @@ pub mod tests {
     use super::super::commands::{Cli, Commands, ConfigCommands};
     use super::super::config::ConfigHandler;
     use super::super::execute;
-    use super::super::tools::normalize_separators;
+    use super::super::tools::tests::normalize_separators;
     use super::super::IOLogs;
     use std::cell::RefCell;
 
