@@ -599,9 +599,9 @@ dependencies = [
 
 [[package]]
 name = "keepass"
-version = "0.8.4"
+version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f486cacf7142ef874c2b51f6fd32b2fd182b16a68ec0567db053d38342a00a3b"
+checksum = "57f26140f4f196a2f601d96bea72d294829b6422f0a624dfc1e7787ea096600a"
 dependencies = [
  "aes",
  "base64",
@@ -1261,10 +1261,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "xml-rs"
-version = "0.8.23"
+name = "xml"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af310deaae937e48a26602b730250b4949e125f468f11e6990be3e5304ddd96f"
+checksum = "72e6e0a83ae73d886ab66fc2f82b598fbbb8f373357d5f2f9f783e50e4d06435"
+
+[[package]]
+name = "xml-rs"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3a56132a0d6ecbe77352edc10232f788fc4ceefefff4cab784a98e0e16b6b51"
+dependencies = [
+ "xml",
+]
 
 [[package]]
 name = "zeroize"
