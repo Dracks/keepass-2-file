@@ -4,8 +4,12 @@ use clap::{command, Parser, Subcommand};
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct Cli {
+    /// Set a custom local configuration
     #[arg(long, value_name = "Config")]
     pub config: Option<String>,
+
+    #[arg(long, action = clap::ArgAction::SetTrue, help = "Suppress warning output (errors still shown)")]
+    pub disable_warnings: bool,
 
     #[command(subcommand)]
     pub command: Commands,
@@ -13,6 +17,7 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
+    /// administer the configuration
     #[command(subcommand)]
     Config(ConfigCommands),
 

@@ -73,6 +73,7 @@ templates:
             let io = IODebug::new();
             let result1 = execute(
                 Cli {
+                    disable_warnings: false,
                     command: Commands::Config(ConfigCommands::AddFile {
                         name: Some(String::from("Test File 1")),
                         template: String::from("./test_resources/.env.example"),
@@ -88,6 +89,7 @@ templates:
 
             let result2 = execute(
                 Cli {
+                    disable_warnings: false,
                     command: Commands::Config(ConfigCommands::AddFile {
                         name: Some(String::from("Test File 2")),
                         template: String::from("./test_resources/.env.example"),
