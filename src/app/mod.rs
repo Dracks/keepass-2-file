@@ -129,7 +129,7 @@ fn get_absolute_path(path: String) -> String {
 }
 
 fn open_keepass_db(keepass_path: String, io: &dyn IOLogs) -> Result<Database, Box<dyn Error>> {
-    let mut file = File::open(keepass_path).map_err(|_| "Keepass db file not found".into())?;
+    let mut file = File::open(keepass_path).map_err(|_| "Keepass db file not found")?;
     let password = io.read(String::from("Enter the KeePass database password: "), true)?;
     let key = DatabaseKey::new().with_password(&password);
     Database::open(&mut file, key)
