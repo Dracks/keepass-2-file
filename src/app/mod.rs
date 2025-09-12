@@ -195,6 +195,8 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
     // Load and parse the configuration file
     let mut config = ConfigHandler::new(&config_path)?;
 
+    let warnings_enabled = !args.disable_warnings;
+
     match args.command {
         Commands::Config(config_command) => match config_command {
             ConfigCommands::SetDefaultKpDb { url } => {
@@ -352,7 +354,7 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
             if !errors.is_empty() {
                 io.error("There were some errors processing".into());
                 for error in errors {
-                    error.to_io_logs(io, !args.disable_warnings);
+                    error.to_io_logs(io, warnings_enabled);
                 }
             }
         }
@@ -412,7 +414,7 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                         template.template_path
                     ));
                     for error in errors {
-                        error.to_io_logs(io, !args.disable_warnings);
+                        error.to_io_logs(io, disable_warnings);
                     }
                 }
                 errors_and_warnings.clean();
@@ -775,6 +777,7 @@ mod tests {
         let errors = io.get_errors();
         println!("{:?}", errors);
         assert_eq!(errors.len(), 8);
+        assert!(!errors.iter().any(|e| e.starts_with("warning:")));
         assert_eq!(
             errors[1],
             "error: Entry 'invalid/entry' not found in the KeePass database."
