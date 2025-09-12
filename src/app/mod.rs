@@ -414,7 +414,7 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                         template.template_path
                     ));
                     for error in errors {
-                        error.to_io_logs(io, disable_warnings);
+                        error.to_io_logs(io, warnings_enabled);
                     }
                 }
                 errors_and_warnings.clean();
