@@ -11,8 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - uses: cachix/install-nix-action@v23
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-    - name: Validate flake.nix
-      run: nix flake check
+    - name: Check Nix flake inputs
+      uses: DeterminateSystems/flake-checker-action@main
+    - name: Install Nix
+      uses: DeterminateSystems/determinate-nix-action@v3
+    - name: Build default package
+      run: nix build
