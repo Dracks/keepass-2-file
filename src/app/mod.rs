@@ -129,8 +129,8 @@ fn get_absolute_path(path: String) -> String {
 }
 
 fn open_keepass_db(keepass_path: String, io: &dyn IOLogs) -> Result<Database, Box<dyn Error>> {
-    let password = io.read(String::from("Enter the KeePass database password: "), true)?;
     let mut file = File::open(keepass_path).map_err(|_| "Keepass db file not found")?;
+    let password = io.read(String::from("Enter the KeePass database password: "), true)?;
     let key = DatabaseKey::new().with_password(&password);
     Database::open(&mut file, key)
         .map_err(|_| "Database cannot be opened, maybe password is wrong?".into())
@@ -437,6 +437,16 @@ mod tests {
             normalize_separators(result.to_str().unwrap()),
             normalize_separators("/home/file")
         );
+    }
+
+    #[test]
+    fn test_open_db_file_not_found() {
+        let io = IODebug::new();
+        let result = open_keepass_db("test_resources/test_db_not_found.kdbx".to_string(), &io);
+        assert!(result.is_err());
+        if let Some(err) = result.err() {
+            assert_eq!(format!("{err}"), "Keepass db file not found")
+        }
     }
 
     #[test]
