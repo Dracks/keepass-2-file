@@ -7,12 +7,16 @@ pub struct Cli {
     #[arg(long, value_name = "Config")]
     pub config: Option<String>,
 
+    #[arg(long, default_value_t = false)]
+    pub disable_warnings: bool,
+
     #[command(subcommand)]
     pub command: Commands,
 }
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
+    /// administrate the configuration
     #[command(subcommand)]
     Config(ConfigCommands),
 

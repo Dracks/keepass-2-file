@@ -27,7 +27,7 @@ pub trait IOLogs {
 }
 
 impl ErrorCode {
-    fn to_io_logs(&self, io: &dyn IOLogs) {
+    fn to_io_logs(&self, io: &dyn IOLogs, enable_warnings: bool) {
         let prefix = LOG_PREFIX.clone();
         match self {
             ErrorCode::GroupFound(path) => {
@@ -75,11 +75,15 @@ impl ErrorCode {
                 "{}: KeePass helper function called without required path parameter.",
                 prefix.error
             )),
-            ErrorCode::DeprecatedPathFormat(path) => io.error(format!(
-                "{}: Using deprecated entry path format. Please use the standard path format: '{}'",
-                prefix.warning,
-                path.join("/")
-            )),
+            ErrorCode::DeprecatedPathFormat(path) => {
+                if enable_warnings {
+                    io.error(format!(
+                        "{}: Using deprecated entry path format. Please use the standard path format: '{}'",
+                        prefix.warning,
+                        path.join("/")
+                    ))
+                }
+            }
         }
     }
 }
@@ -348,7 +352,7 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
             if !errors.is_empty() {
                 io.error("There were some errors processing".into());
                 for error in errors {
-                    error.to_io_logs(io);
+                    error.to_io_logs(io, !args.disable_warnings);
                 }
             }
         }
@@ -408,7 +412,7 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                         template.template_path
                     ));
                     for error in errors {
-                        error.to_io_logs(io);
+                        error.to_io_logs(io, !args.disable_warnings);
                     }
                 }
                 errors_and_warnings.clean();
@@ -447,6 +451,7 @@ mod tests {
         // Test get keepass with empty config
         let get_result = execute(
             Cli {
+                disable_warnings: false,
                 command: Commands::Config(ConfigCommands::GetKpDb),
                 config: Some(String::from(test.get_file_path())),
             },
@@ -457,6 +462,7 @@ mod tests {
         // Test list templates with empty config
         let list_templates_result = execute(
             Cli {
+                disable_warnings: false,
                 command: Commands::Config(ConfigCommands::ListFiles),
                 config: Some(String::from(test.get_file_path())),
             },
@@ -467,6 +473,7 @@ mod tests {
         // Test list variables with empty config
         let list_vars_result = execute(
             Cli {
+                disable_warnings: false,
                 command: Commands::Config(ConfigCommands::ListVariables),
                 config: Some(String::from(test.get_file_path())),
             },
@@ -493,6 +500,7 @@ mod tests {
 
         let result = execute(
             Cli {
+                disable_warnings: false,
                 command: Commands::Config(ConfigCommands::SetDefaultKpDb {
                     url: String::from(absolute_path_string),
                 }),
@@ -524,6 +532,7 @@ mod tests {
         // Then get it
         let get_result = execute(
             Cli {
+                disable_warnings: false,
                 command: Commands::Config(ConfigCommands::GetKpDb),
                 config: Some(String::from(test.get_file_path())),
             },
@@ -543,6 +552,7 @@ mod tests {
 
         let result = execute(
             Cli {
+                disable_warnings: false,
                 command: Commands::Config(ConfigCommands::ListFiles),
                 config: Some(String::from(test.get_file_path())),
             },
@@ -564,6 +574,7 @@ mod tests {
         let io = IODebug::new();
         let result = execute(
             Cli {
+                disable_warnings: false,
                 command: Commands::Config(ConfigCommands::AddFile {
                     name: Some(String::from("New template")),
                     template: String::from("./test_resources/file-with-error"),
@@ -591,6 +602,7 @@ mod tests {
         let io = IODebug::new();
         let result = execute(
             Cli {
+                disable_warnings: false,
                 command: Commands::Config(ConfigCommands::AddFile {
                     name: Some(String::from("New name")),
                     template: String::from("./test_resources/.env.example"),
@@ -618,6 +630,7 @@ mod tests {
         io.add_stdin("MyTestPass".to_string());
         let ret = execute(
             Cli {
+                disable_warnings: false,
                 command: Commands::Build {
                     template: String::from("test_resources/file-with-error"),
                     relative_to_input: false,
@@ -736,11 +749,69 @@ mod tests {
     }
 
     #[test]
+    fn test_render_only_errors() {
+        let _colorized = OverrideColorize::new(false);
+
+        let mut io = IODebug::new();
+        io.add_stdin("MyTestPass".to_string());
+
+        let result = execute(
+            Cli::parse_from([
+                "kp2f",
+                "--disable-warnings",
+                "build",
+                "-k",
+                "./test_resources/test_db.kdbx",
+                "./test_resources/.env.all-errors",
+                "-r",
+                "./tmp/file_with_errors",
+            ]),
+            &io,
+        );
+
+        println!("{:?}", result);
+        assert!(result.is_ok());
+
+        let errors = io.get_errors();
+        println!("{:?}", errors);
+        assert_eq!(errors.len(), 8);
+        assert_eq!(
+            errors[1],
+            "error: Entry 'invalid/entry' not found in the KeePass database."
+        );
+        assert_eq!(
+            errors[2],
+            "error: Field 'whatever' not found in entry 'group1/test2'."
+        );
+        assert_eq!(
+            errors[3],
+            "error: Entry 'missing' does not contain a username field."
+        );
+        assert_eq!(
+            errors[4],
+            "error: Entry 'missing' does not contain a URL field."
+        );
+        assert_eq!(
+            errors[5],
+            "error: Entry 'missing' does not contain a password field."
+        );
+        assert_eq!(
+            errors[6],
+            "error: KeePass helper function called without required path parameter."
+        );
+        assert_eq!(
+            errors[7],
+            "error: Cannot access entry 'group1' because it is a group, not an individual entry."
+        );
+    }
+
+    #[test]
     fn test_prune_command() {
         let test = TestConfig::create();
         let io = IODebug::new();
         let result = execute(
             Cli {
+                disable_warnings: false,
                 config: Some(String::from(test.get_file_path())),
                 command: Commands::Config(ConfigCommands::Prune),
             },
@@ -762,6 +833,7 @@ mod tests {
         let io = IODebug::new();
         let result = execute(
             Cli {
+                disable_warnings: false,
                 config: Some(String::from(test.get_file_path())),
                 command: Commands::Config(ConfigCommands::Delete {
                     template: NameOrPath::Name {
@@ -788,6 +860,7 @@ mod tests {
         io.add_stdin("MyTestPass".to_string());
         let result = execute(
             Cli {
+                disable_warnings: false,
                 config: Some(String::from(test.get_file_path())),
                 command: Commands::BuildAll { vars: Vec::new() },
             },
@@ -805,6 +878,7 @@ mod tests {
         let io = IODebug::new();
         let result = execute(
             Cli {
+                disable_warnings: false,
                 config: Some(String::from(test.get_file_path())),
                 command: Commands::Config(ConfigCommands::AddVariables {
                     variables: Vec::from([
@@ -831,6 +905,7 @@ mod tests {
 
         let result = execute(
             Cli {
+                disable_warnings: false,
                 config: Some(test.get_file_path()),
                 command: Commands::Config(ConfigCommands::ListVariables),
             },
@@ -853,6 +928,7 @@ mod tests {
         let io = IODebug::new();
         let result = execute(
             Cli {
+                disable_warnings: false,
                 config: Some(String::from(test.get_file_path())),
                 command: Commands::Config(ConfigCommands::DeleteVariables {
                     variables: Vec::from([String::from("something")]),
@@ -878,6 +954,7 @@ mod tests {
         let io = IODebug::new();
         let result = execute(
             Cli {
+                disable_warnings: false,
                 config: Some(String::from(test.get_file_path())),
                 command: Commands::Config(ConfigCommands::AddVariables {
                     variables: Vec::from([
@@ -919,6 +996,7 @@ mod tests {
         io.add_stdin("MyTestPass".to_string());
         let result = execute(
             Cli {
+                disable_warnings: false,
                 config: Some(String::from(test.get_file_path())),
                 command: Commands::Build {
                     template: String::from("./test_resources/with_variables"),
@@ -946,6 +1024,7 @@ mod tests {
         io.add_stdin("MyTestPass".to_string());
         let result = execute(
             Cli {
+                disable_warnings: false,
                 config: Some(String::from(test.get_file_path())),
                 command: Commands::BuildAll {
                     vars: Vec::from([String::from("email=j@k2.com")]),
