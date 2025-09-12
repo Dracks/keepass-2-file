@@ -426,7 +426,7 @@ mod tests {
     use logs_prefix::test::OverrideColorize;
     use std::fs;
     use test_helpers::tests::{IODebug, TestConfig};
-    use tools::normalize_separators;
+    use tools::tests::normalize_separators;
 
     #[test]
     fn test_join_relative_basic() {
