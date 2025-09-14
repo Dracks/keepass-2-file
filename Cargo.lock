@@ -599,9 +599,9 @@ dependencies = [
 
 [[package]]
 name = "keepass"
-version = "0.8.5"
+version = "0.8.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57f26140f4f196a2f601d96bea72d294829b6422f0a624dfc1e7787ea096600a"
+checksum = "53ff1544e6e049dcfe61e6fba20cb626568a131ba8114b323d4e88799e562b24"
 dependencies = [
  "aes",
  "base64",
@@ -885,14 +885,15 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.143"
+version = "1.0.145"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d401abef1d108fbd9cbaebc3e46611f4b1021f714a0597a71f41ee463f5f4a5a"
+checksum = "402a6f66d8c709116cf22f558eab210f5a50187f702eb4d7e5ef38d9a7f1c79c"
 dependencies = [
  "itoa",
  "memchr",
  "ryu",
  "serde",
+ "serde_core",
 ]
 
 [[package]]
