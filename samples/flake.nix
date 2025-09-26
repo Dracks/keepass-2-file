@@ -3,7 +3,7 @@
 
   inputs = {
     # Add the keepass-2-file input
-    keepass-2-file.url = "github:Dracks/keepass-2-file/feat/adding-nix";
+    keepass-2-file.url = "github:Dracks/keepass-2-file";
   };
 
   outputs =
