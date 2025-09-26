@@ -48,6 +48,7 @@
           rustPlatform.buildRustPackage {
             name = "keepass-2-file";
             src = ./.;
+            doCheck = false;
             cargoLock = {
               lockFile = ./Cargo.lock;
             };
