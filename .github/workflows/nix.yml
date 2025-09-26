@@ -12,7 +12,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Check Nix flake inputs
-      uses: DeterminateSystems/flake-checker-action@main
+      uses: DeterminateSystems/flake-checker-action@v12
     - name: Install Nix
       uses: DeterminateSystems/determinate-nix-action@v3
     - name: Build default package
