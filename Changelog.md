@@ -1,3 +1,9 @@
+# 0.6.0 (2025-09-12)
+* New Keepass entry selection format
+* Improved build to check for keepass DB before asking password
+* Added a feature to disable warnings on build
+* Modified tests to ensure compatibility with Windows
+
 # 0.5.1 (2025-06-06)
 * Added colors into the logs output
 * Internal improvement
