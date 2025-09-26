@@ -44,6 +44,10 @@ cd keepass-2-file
 cargo install --path .
 ```
 
+### Using nix-os Flakes
+
+To install it with flakes, you can use the sample file in [samples/flake.nix](samples/flake.nix) copying to your `/etc/nixos/` folder
+
 ### Downloading the last executable
 
 1. Download the executable from the repo
