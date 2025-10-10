@@ -6,6 +6,16 @@ pub mod tests {
     use super::super::tools::tests::normalize_separators;
     use super::super::IOLogs;
     use std::cell::RefCell;
+    use std::path::Path;
+
+    pub fn test_resources(file: impl Into<String>) -> String {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("test_resources")
+            .join(file.into())
+            .to_str()
+            .unwrap()
+            .to_string()
+    }
 
     pub struct TestConfig {
         config_file: String,
@@ -40,8 +50,8 @@ pub mod tests {
         pub fn create() -> TestConfig {
             let manifest_path = env!("CARGO_MANIFEST_DIR");
             let current_path_string = manifest_path.to_owned();
-            let test_path = current_path_string.clone()
-                + &normalize_separators("/test_resources/.env.example");
+            let test_path =
+                current_path_string.clone() + &normalize_separators("/test_resources/.env.example");
 
             let test_config = format!(
                 "keepass: {current_path_string}/test_resources/test_db.kdbx

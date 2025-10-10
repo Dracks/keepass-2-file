@@ -170,7 +170,11 @@ mod tests {
     use super::*;
 
     fn get_db() -> Database {
-        let db_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("test_resources/test_db.kdbx").to_str().unwrap().to_string();
+        let db_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("test_resources/test_db.kdbx")
+            .to_str()
+            .unwrap()
+            .to_string();
         let mut file = File::open(db_path).expect("Test DB cannot be open");
 
         let key = DatabaseKey::new().with_password("MyTestPass");
