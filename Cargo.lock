@@ -241,6 +241,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap_complete"
+version = "4.5.58"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75bf0b32ad2e152de789bb635ea4d3078f6b838ad7974143e99b99f45a04af4a"
+dependencies = [
+ "clap",
+]
+
+[[package]]
 name = "clap_derive"
 version = "4.5.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -270,7 +279,7 @@ version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fde0e0ec90c9dfb3b4b1a0891a7dcd0e2bffde2f7efed5fe7c9bb00e5bfb915e"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -629,9 +638,10 @@ dependencies = [
 
 [[package]]
 name = "keepass-2-file"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "clap",
+ "clap_complete",
  "colored",
  "dirs",
  "handlebars",

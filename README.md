@@ -46,7 +46,7 @@ cargo install --path .
 
 ### Using nix-os Flakes
 
-To install it with flakes, you can use the sample file in [samples/flake.nix](samples/flake.nix) copying to your `/etc/nixos/` folder
+To install it with flakes, you can use the sample file in [samples/flake.nix](samples/flake.nix) copying to your `/etc/nixos/` folder, this will install also the bash completions.
 
 ### Downloading the last executable
 
@@ -75,6 +75,40 @@ keepass-2-file --config non/global/config/file.yaml config delete name template-
 
 # Build some .env overwriting or adding multiple variables
 keepass-2-file build -v "email=j@k.com" -v "other=daleks in manhattam" file.env.example .env
+```
+
+### Autocompletion
+
+To enable autocompletion for your shell, you can generate a completion script and source it in your shell's configuration file.
+
+#### Bash
+
+```bash
+keepass-2-file completion bash > /usr/local/etc/bash_completion.d/keepass-2-file
+```
+
+#### Zsh
+
+```bash
+keepass-2-file completion zsh > ~/.zsh/completion/_keepass-2-file
+```
+
+#### Fish
+
+```bash
+keepass-2-file completion fish > ~/.config/fish/completions/keepass-2-file.fish
+```
+
+#### PowerShell
+
+```powershell
+keepass-2-file completion powershell >> $PROFILE
+```
+
+#### Elvish
+
+```elvish
+keepass-2-file completion elvish > ~/.elvish/lib/keepass-2-file.elv
 ```
 
 ### Build Command Options
