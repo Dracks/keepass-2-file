@@ -52,7 +52,7 @@
             cargoLock = {
               lockFile = ./Cargo.lock;
             };
-            installPhase = ''
+            postInstall = ''
               mkdir -p $out/share/bash-completion/completions
               $out/bin/keepass-2-file completion bash > $out/share/bash-completion/completions/keepass-2-file
             '';

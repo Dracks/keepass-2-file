@@ -1,5 +1,5 @@
 use clap::{command, Parser, Subcommand};
-use clap_complete;
+use clap_complete::Shell;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -26,7 +26,7 @@ pub enum Commands {
     Completion {
         /// The shell to generate completions for
         #[arg(value_enum)]
-        shell: clap_complete::Shell,
+        shell: Shell,
     },
 
     /// Build a template to the selected output

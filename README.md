@@ -81,31 +81,31 @@ keepass-2-file build -v "email=j@k.com" -v "other=daleks in manhattam" file.env.
 
 To enable autocompletion for your shell, you can generate a completion script and source it in your shell's configuration file.
 
-**Bash**
+#### Bash
 
 ```bash
 keepass-2-file completion bash > /usr/local/etc/bash_completion.d/keepass-2-file
 ```
 
-**Zsh**
+#### Zsh
 
 ```bash
 keepass-2-file completion zsh > ~/.zsh/completion/_keepass-2-file
 ```
 
-**Fish**
+#### Fish
 
 ```bash
 keepass-2-file completion fish > ~/.config/fish/completions/keepass-2-file.fish
 ```
 
-**PowerShell**
+#### PowerShell
 
 ```powershell
 keepass-2-file completion powershell >> $PROFILE
 ```
 
-**Elvish**
+#### Elvish
 
 ```elvish
 keepass-2-file completion elvish > ~/.elvish/lib/keepass-2-file.elv
