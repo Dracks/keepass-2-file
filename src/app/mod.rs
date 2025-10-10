@@ -449,7 +449,12 @@ mod tests {
     #[test]
     fn test_open_db_file_not_found() {
         let io = IODebug::new();
-        let result = open_keepass_db("test_resources/test_db_not_found.kdbx".to_string(), &io);
+        let db_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("test_resources/test_db_not_found.kdbx")
+            .to_str()
+            .unwrap()
+            .to_string();
+        let result = open_keepass_db(db_path, &io);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert_eq!(err.to_string(), "Keepass db file not found");
@@ -506,7 +511,7 @@ mod tests {
     fn test_set_default_keepass_file() {
         let test = TestConfig::create();
         let io = IODebug::new();
-        let relative_path = Path::new("test_resources/test_db.kdbx");
+        let relative_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("test_resources/test_db.kdbx");
         let absolute_path = fs::canonicalize(relative_path).unwrap();
         let absolute_path_string = absolute_path.to_str().unwrap();
 
