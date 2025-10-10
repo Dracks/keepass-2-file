@@ -1,8 +1,10 @@
-use clap::Parser;
+use clap::{CommandFactory, Parser};
+use clap_complete::generate;
 use std::error::Error;
+use std::io;
 
 mod app;
-use app::commands::Cli;
+use app::commands::{Cli, Commands};
 use app::execute;
 use app::IOLogs;
 
@@ -32,5 +34,12 @@ impl IOLogs for Console {
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Cli::parse();
 
-    execute(args, &Console {})
+    if let Commands::Completion { shell } = args.command {
+        let mut cmd = Cli::command();
+        let name = cmd.get_name().to_string();
+        generate(shell, &mut cmd, name, &mut io::stdout());
+        Ok(())
+    } else {
+        execute(args, &Console {})
+    }
 }

@@ -419,7 +419,8 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                 }
                 errors_and_warnings.clean();
             }
-        }
+        },
+        Commands::Completion { shell: _ } => {}
     }
     Ok(())
 }
