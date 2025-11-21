@@ -427,6 +427,8 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
 #[cfg(test)]
 mod tests {
 
+    use crate::app::test_helpers::tests::test_resources;
+
     use super::*;
 
     use clap::Parser;
@@ -449,7 +451,8 @@ mod tests {
     #[test]
     fn test_open_db_file_not_found() {
         let io = IODebug::new();
-        let result = open_keepass_db("test_resources/test_db_not_found.kdbx".to_string(), &io);
+        let db_path = test_resources("test_db_not_found.kdbx");
+        let result = open_keepass_db(db_path, &io);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert_eq!(err.to_string(), "Keepass db file not found");
@@ -506,7 +509,8 @@ mod tests {
     fn test_set_default_keepass_file() {
         let test = TestConfig::create();
         let io = IODebug::new();
-        let relative_path = Path::new("test_resources/test_db.kdbx");
+        let test_db = test_resources("test_db.kdbx");
+        let relative_path = Path::new(test_db.as_str());
         let absolute_path = fs::canonicalize(relative_path).unwrap();
         let absolute_path_string = absolute_path.to_str().unwrap();
 
@@ -644,10 +648,10 @@ mod tests {
             Cli {
                 disable_warnings: false,
                 command: Commands::Build {
-                    template: String::from("test_resources/file-with-error"),
+                    template: test_resources("file-with-error"),
                     relative_to_input: false,
                     output: String::from("test_outputs/file-with-error"),
-                    keepass: Some(String::from("test_resources/test_db.kdbx")),
+                    keepass: Some(test_resources("test_db.kdbx")),
                     vars: Vec::new(),
                 },
                 config: None,
@@ -712,8 +716,8 @@ mod tests {
                 "kp2f",
                 "build",
                 "-k",
-                "./test_resources/test_db.kdbx",
-                "./test_resources/.env.all-errors",
+                test_resources("test_db.kdbx").as_str(),
+                test_resources(".env.all-errors").as_str(),
                 "-r",
                 "./tmp/file_with_errors",
             ]),
@@ -773,8 +777,8 @@ mod tests {
                 "--disable-warnings",
                 "build",
                 "-k",
-                "./test_resources/test_db.kdbx",
-                "./test_resources/.env.all-errors",
+                test_resources("test_db.kdbx").as_str(),
+                test_resources(".env.all-errors").as_str(),
                 "-r",
                 "./tmp/file_with_errors",
             ]),
