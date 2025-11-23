@@ -608,9 +608,9 @@ dependencies = [
 
 [[package]]
 name = "keepass"
-version = "0.8.14"
+version = "0.8.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5770c970cad3f162f43aac1a37787e4574d4075d9eb33e5902399f9d74f031c5"
+checksum = "fc77c88b0323fbd97bfa7cf89791fe8fea76a1cd268030d263240fe2ffc82010"
 dependencies = [
  "aes",
  "base64",
@@ -625,6 +625,7 @@ dependencies = [
  "hex",
  "hex-literal",
  "hmac",
+ "js-sys",
  "rust-argon2",
  "salsa20",
  "secstr",
