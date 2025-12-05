@@ -429,11 +429,11 @@ mod tests {
 
     use super::*;
 
+    use crate::app::test_helpers::tests::{IODebug, TestConfig};
+    use ::test_helpers::normalize_separators;
     use clap::Parser;
     use logs_prefix::test::OverrideColorize;
     use std::fs;
-    use test_helpers::tests::{IODebug, TestConfig};
-    use tools::tests::normalize_separators;
 
     #[test]
     fn test_join_relative_basic() {
