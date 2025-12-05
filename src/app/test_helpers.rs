@@ -36,7 +36,8 @@ pub mod tests {
                 + &normalize_separators("/test_resources/.env.example");
 
             let test_config = format!(
-                "keepass: {current_path_string}/test_resources/test_db.kdbx
+                "version: 2
+keepass: {current_path_string}/test_resources/test_db.kdbx
 templates:
 - template_path: {current_path_string}/some-missing-file
   output_path: something

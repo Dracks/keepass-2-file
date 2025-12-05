@@ -156,7 +156,8 @@ impl ConfigHandler {
     }
 
     pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let yaml = serde_yaml::to_string(&YamlConfigVersioned::Latest(self.config.clone()))?;
+        let version = YamlConfigVersioned::Latest(self.config.clone());
+        let yaml = serde_yaml::to_string(&version)?;
         std::fs::write(&self.file, yaml)?;
         Ok(())
     }
