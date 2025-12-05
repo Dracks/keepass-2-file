@@ -10,7 +10,7 @@ pub struct YamlConfigTemplate {
     pub output_path: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct YamlConfig {
     pub keepass: Option<String>,
 
@@ -18,6 +18,25 @@ pub struct YamlConfig {
     templates: Vec<YamlConfigTemplate>,
     #[serde(default)]
     variables: HashMap<String, String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct YamlConfigV1 {
+    pub keepass: Option<String>,
+
+    #[serde(default)]
+    templates: Option<Vec<YamlConfigTemplate>>,
+    #[serde(default)]
+    variables: Option<HashMap<String, String>>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(tag = "version")]
+enum YamlConfigVersioned {
+    #[serde(rename = "2")]
+    Latest(YamlConfig),
+    #[serde(untagged)]
+    Legacy(YamlConfigV1), // For files without version field
 }
 
 impl YamlConfig {
@@ -90,6 +109,16 @@ impl YamlConfig {
     }
 }
 
+impl From<YamlConfigV1> for YamlConfig {
+    fn from(value: YamlConfigV1) -> Self {
+        Self {
+            keepass: value.keepass,
+            templates: value.templates.unwrap_or_default(),
+            variables: value.variables.unwrap_or_default(),
+        }
+    }
+}
+
 pub struct ConfigHandler {
     file: String,
     pub config: YamlConfig,
@@ -109,7 +138,11 @@ impl ConfigHandler {
                 variables: HashMap::new(),
             }
         } else {
-            serde_yaml::from_str(&contents)?
+            let versioned: YamlConfigVersioned = serde_yaml::from_str(&contents)?;
+            match versioned {
+                YamlConfigVersioned::Latest(conf) => conf,
+                YamlConfigVersioned::Legacy(legacy) => legacy.into(),
+            }
         };
 
         Ok(ConfigHandler {
@@ -123,7 +156,7 @@ impl ConfigHandler {
     }
 
     pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let yaml = serde_yaml::to_string(&self.config)?;
+        let yaml = serde_yaml::to_string(&YamlConfigVersioned::Latest(self.config.clone()))?;
         std::fs::write(&self.file, yaml)?;
         Ok(())
     }

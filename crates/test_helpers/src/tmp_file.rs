@@ -23,6 +23,10 @@ impl TmpFile {
         std::fs::write(&self.file, contents).expect("Unable to write temporary configuration file");
     }
 
+    pub fn read(&self) -> String {
+        std::fs::read_to_string(&self.file).expect("Unable to read the file")
+    }
+
     pub fn get(&self) -> String {
         self.file.clone()
     }
