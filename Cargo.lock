@@ -654,7 +654,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
- "uuid",
+ "test_helpers",
 ]
 
 [[package]]
@@ -967,6 +967,13 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "test_helpers"
+version = "0.1.0"
+dependencies = [
+ "uuid",
 ]
 
 [[package]]

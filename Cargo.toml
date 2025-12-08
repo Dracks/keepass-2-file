@@ -3,6 +3,14 @@ name = "keepass-2-file"
 version = "0.6.1"
 edition = "2021"
 
+[workspace]
+members=["crates/*"]
+resolver="2"
+
+[workspace.dependencies]
+test_helpers = {path="crates/test_helpers"}
+uuid = "1.16.0"
+
 [dependencies]
 keepass = "0.8.0"
 serde = { version = "1.0.0", features=["derive"] }
@@ -13,5 +21,7 @@ clap_complete = "4.5.21"
 serde_yaml = "0.9.34"
 rpassword = "7.3.1"
 dirs = "6.0.0"
-uuid = "1.16.0"
 colored = "3.0.0"
+
+[dev-dependencies]
+test_helpers = { workspace = true}
