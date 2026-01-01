@@ -4,11 +4,3 @@ where
 {
     v.into_iter().map(Into::into).collect()
 }
-
-#[cfg(test)]
-pub mod tests {
-
-    pub fn normalize_separators(path: &str) -> String {
-        path.replace(['/', '\\'], std::path::MAIN_SEPARATOR_STR)
-    }
-}
