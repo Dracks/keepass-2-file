@@ -6,6 +6,16 @@ pub mod tests {
     use super::super::tools::tests::normalize_separators;
     use super::super::IOLogs;
     use std::cell::RefCell;
+    use std::path::Path;
+
+    pub fn test_resources(file: impl Into<String>) -> String {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("test_resources")
+            .join(file.into())
+            .to_str()
+            .unwrap()
+            .to_string()
+    }
 
     pub struct TestConfig {
         config_file: String,
@@ -38,10 +48,10 @@ pub mod tests {
         }
 
         pub fn create() -> TestConfig {
-            let current_path = std::env::current_dir().unwrap();
-            let current_path_string = current_path.to_str().unwrap();
-            let test_path = current_path_string.to_owned()
-                + &normalize_separators("/test_resources/.env.example");
+            let manifest_path = env!("CARGO_MANIFEST_DIR");
+            let current_path_string = manifest_path.to_owned();
+            let test_path =
+                current_path_string.clone() + &normalize_separators("/test_resources/.env.example");
 
             let test_config = format!(
                 "keepass: {current_path_string}/test_resources/test_db.kdbx
@@ -60,8 +70,8 @@ templates:
         }
 
         pub fn create_normalized() -> TestConfig {
-            let current_path = std::env::current_dir().unwrap();
-            let current_path_string = current_path.to_str().unwrap();
+            let manifest_path = env!("CARGO_MANIFEST_DIR");
+            let current_path_string = manifest_path.to_owned();
 
             let test_config = format!(
                 "keepass: {current_path_string}/test_resources/test_db.kdbx
@@ -108,8 +118,8 @@ templates:
 
         #[allow(dead_code)]
         pub fn create_with_vars() -> TestConfig {
-            let current_path = std::env::current_dir().unwrap();
-            let current_path_display = current_path.display();
+            let manifest_path = env!("CARGO_MANIFEST_DIR");
+            let current_path_display = manifest_path;
 
             let test_config = format!(
                 "keepass: {current_path_display}/test_resources/test_db.kdbx
@@ -130,8 +140,8 @@ variables:
 
         #[allow(dead_code)]
         pub fn create_with_errors() -> TestConfig {
-            let current_path = std::env::current_dir().unwrap();
-            let current_path_display = current_path.display();
+            let manifest_path = env!("CARGO_MANIFEST_DIR");
+            let current_path_display = manifest_path;
 
             let test_config = format!(
                 "keepass: {current_path_display}/test_resources/test_db.kdbx
