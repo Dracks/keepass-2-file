@@ -170,14 +170,19 @@ mod tests {
     use super::*;
 
     fn get_db() -> Database {
-        let mut file = File::open("test_resources/test_db.kdbx").expect("Test DB cannot be open");
+        let db_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("test_resources/test_db.kdbx")
+            .to_str()
+            .unwrap()
+            .to_string();
+        let mut file = File::open(db_path).expect("Test DB cannot be open");
 
         let key = DatabaseKey::new().with_password("MyTestPass");
         Database::open(&mut file, key).expect("Cannot open the DB")
     }
 
     use keepass::DatabaseKey;
-    use std::fs::File;
+    use std::{fs::File, path::Path};
 
     #[test]
     fn test_handlebars_keepass_variables() {
