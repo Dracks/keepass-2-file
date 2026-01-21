@@ -1,4 +1,4 @@
-use clap::{command, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 use clap_complete::Shell;
 
 /// Simple program to greet a person
