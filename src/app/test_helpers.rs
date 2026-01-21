@@ -3,38 +3,30 @@ pub mod tests {
     use super::super::commands::{Cli, Commands, ConfigCommands};
     use super::super::config::ConfigHandler;
     use super::super::execute;
-    use super::super::tools::tests::normalize_separators;
     use super::super::IOLogs;
     use std::cell::RefCell;
+    use test_helpers::{normalize_separators, TmpFile};
 
     pub struct TestConfig {
-        config_file: String,
-        auto_clean: bool,
+        config: TmpFile,
     }
 
     impl TestConfig {
         pub fn get_file_path(&self) -> String {
-            self.config_file.clone()
+            self.config.get()
         }
 
         pub fn get(&self) -> ConfigHandler {
-            ConfigHandler::new(&self.config_file)
+            ConfigHandler::new(&self.config.get())
                 .expect("Failed to load temp config created by TestConfig")
         }
 
         fn create_config(content: Option<String>) -> TestConfig {
-            let uuid = uuid::Uuid::new_v4();
-            let config_file = format!("test_resources/tmp/config_{}.yml", uuid);
-            std::fs::create_dir_all("test_resources/tmp")
-                .expect("Unable to create temporary test_resources/tmp directory");
+            let config = TmpFile::new_uuid("test_resources/tmp".into(), "yml".into());
             if let Some(content) = content {
-                std::fs::write(&config_file, content)
-                    .expect("Unable to write temporary configuration file");
+                config.write(content)
             }
-            TestConfig {
-                config_file,
-                auto_clean: true,
-            }
+            TestConfig { config }
         }
 
         pub fn create() -> TestConfig {
@@ -44,7 +36,8 @@ pub mod tests {
                 + &normalize_separators("/test_resources/.env.example");
 
             let test_config = format!(
-                "keepass: {current_path_string}/test_resources/test_db.kdbx
+                "version: 2
+keepass: {current_path_string}/test_resources/test_db.kdbx
 templates:
 - template_path: {current_path_string}/some-missing-file
   output_path: something
@@ -156,17 +149,8 @@ variables:
 
         #[allow(dead_code)]
         pub fn disable_auto_clean(&mut self) -> &TestConfig {
-            self.auto_clean = false;
+            self.config.disable_auto_clean();
             self
-        }
-    }
-
-    impl Drop for TestConfig {
-        fn drop(&mut self) {
-            if self.auto_clean {
-                // Cleanup will happen even if test fails
-                std::fs::remove_file(&self.config_file).unwrap_or_default();
-            }
         }
     }
 
