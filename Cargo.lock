@@ -665,7 +665,7 @@ dependencies = [
 
 [[package]]
 name = "keepass-2-file"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "clap",
  "clap_complete",
@@ -1016,7 +1016,7 @@ dependencies = [
 
 [[package]]
 name = "test_helpers"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "uuid",
 ]

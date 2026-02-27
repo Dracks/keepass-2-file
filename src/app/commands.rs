@@ -86,6 +86,12 @@ pub enum ConfigCommands {
             help = "when output is a relative path, it will make it relative to the folder of template when enabled or relative to current when disabled"
         )]
         relative_to_input: bool,
+        #[arg(
+            short,
+            long,
+            help="add the file in the current project configuration"
+        )]
+        local:bool
     },
 
     /// Deletes all templates that the source doesn't exists
