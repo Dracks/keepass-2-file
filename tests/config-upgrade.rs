@@ -6,7 +6,7 @@ fn create_v1_config() -> TmpFile {
     let current_path = std::env::current_dir().unwrap();
     let current_path_string = current_path.to_str().unwrap();
 
-    let file = TmpFile::new_uuid("test_resources/tmp/".into(), "yml".into());
+    let file = TmpFile::new_uuid("test_resources/tmp/", "yml");
     file.write(format!(
         "keepass: {current_path_string}/test_resources/db.kdbx
 templates: null"

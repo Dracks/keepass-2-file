@@ -1,3 +1,4 @@
+
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
@@ -10,7 +11,7 @@ pub struct YamlConfigTemplate {
     pub output_path: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct YamlConfig {
     pub keepass: Option<String>,
 
@@ -40,6 +41,25 @@ enum YamlConfigVersioned {
 }
 
 impl YamlConfig {
+
+    pub fn new(contents: &str) -> Result<Self, serde_yaml::Error> {
+
+        if contents.is_empty() {
+            Ok(YamlConfig::default())
+        } else {
+            let versioned: YamlConfigVersioned = serde_yaml::from_str(&contents)?;
+            match versioned {
+                YamlConfigVersioned::Latest(conf) => Ok(conf),
+                YamlConfigVersioned::Legacy(legacy) => Ok(legacy.into()),
+            }
+        }
+    }
+
+    pub fn yaml(&self) -> Result<String, serde_yaml::Error> {
+        let version = YamlConfigVersioned::Latest(self.clone());
+        serde_yaml::to_string(&version)
+    }
+
     pub fn get_templates(&self) -> Vec<YamlConfigTemplate> {
         self.templates.to_vec()
     }
@@ -116,64 +136,5 @@ impl From<YamlConfigV1> for YamlConfig {
             templates: value.templates.unwrap_or_default(),
             variables: value.variables.unwrap_or_default(),
         }
-    }
-}
-
-pub struct ConfigHandler {
-    file: String,
-    pub config: YamlConfig,
-}
-
-impl ConfigHandler {
-    pub fn new(file: &str) -> Result<ConfigHandler, Box<dyn std::error::Error>> {
-        if !std::path::Path::new(file).exists() {
-            std::fs::write(file, "")?;
-        }
-
-        let contents = std::fs::read_to_string(file)?;
-        let config = if contents.is_empty() {
-            YamlConfig {
-                keepass: None,
-                templates: Vec::new(),
-                variables: HashMap::new(),
-            }
-        } else {
-            let versioned: YamlConfigVersioned = serde_yaml::from_str(&contents)?;
-            match versioned {
-                YamlConfigVersioned::Latest(conf) => conf,
-                YamlConfigVersioned::Legacy(legacy) => legacy.into(),
-            }
-        };
-
-        Ok(ConfigHandler {
-            file: file.to_string(),
-            config,
-        })
-    }
-
-    pub fn get_file(&self) -> &str {
-        &self.file
-    }
-
-    pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let version = YamlConfigVersioned::Latest(self.config.clone());
-        let yaml = serde_yaml::to_string(&version)?;
-        std::fs::write(&self.file, yaml)?;
-        Ok(())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::app::test_helpers::tests::TestConfig;
-
-    #[test]
-    fn test_loading_empty_file() {
-        let test_config = TestConfig::create_empty_file();
-        std::fs::write(test_config.get_file_path(), "{}").expect("Can write test file");
-
-        let config = test_config.get();
-
-        assert_eq!(config.config.get_templates().len(), 0);
     }
 }

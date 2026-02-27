@@ -9,6 +9,7 @@ pub mod tests {
 
     pub struct TestConfig {
         config: TmpFile,
+        project: TmpFile,
     }
 
     impl TestConfig {
@@ -17,16 +18,16 @@ pub mod tests {
         }
 
         pub fn get(&self) -> ConfigHandler {
-            ConfigHandler::new(&self.config.get())
+            ConfigHandler::new(&self.config.get(), self.project.get())
                 .expect("Failed to load temp config created by TestConfig")
         }
 
         fn create_config(content: Option<String>) -> TestConfig {
-            let config = TmpFile::new_uuid("test_resources/tmp".into(), "yml".into());
+            let config = TmpFile::new_uuid("test_resources/tmp", "yml");
             if let Some(content) = content {
                 config.write(content)
             }
-            TestConfig { config }
+            TestConfig { config, project: TmpFile::new("test_resources/tmp/project".into()) }
         }
 
         pub fn create() -> TestConfig {
@@ -72,6 +73,7 @@ templates:
                         template: String::from("./test_resources/.env.example"),
                         output: String::from("./test_resources/tmp/.env"),
                         relative_to_input: false,
+                        local: false,
                     }),
                     config: Some(String::from(test.get_file_path())),
                 },
@@ -88,6 +90,7 @@ templates:
                         template: String::from("./test_resources/.env.example"),
                         output: String::from("./test_resources/tmp/.env2"),
                         relative_to_input: false,
+                        local: false,
                     }),
                     config: Some(String::from(test.get_file_path())),
                 },

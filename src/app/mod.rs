@@ -192,8 +192,10 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
         .config
         .unwrap_or_else(|| format!("{home}/.config/keepass-2-file.yaml"));
 
+    let project=std::env::current_dir()?.to_str().unwrap().to_string();
+
     // Load and parse the configuration file
-    let mut config = ConfigHandler::new(&config_path)?;
+    let mut config = ConfigHandler::new(&config_path, project)?;
 
     let warnings_enabled = !args.disable_warnings;
 
@@ -204,7 +206,7 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                 if path.is_absolute() {
                     if path.exists() {
                         io.log(format!("Setting default KeePass DB URL: {url:?}"));
-                        config.config.keepass = Some(url);
+                        config.global.keepass = Some(url);
                         config.save()?;
                     } else {
                         io.error(format!(
@@ -215,7 +217,7 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                     io.error("The file path is not absolute. It must follow this format: /Users/username/**/*.kdbx on Mac, or C:\\**\\*.kdbx on Windows".to_string());
                 }
             }
-            ConfigCommands::GetKpDb => match config.config.keepass {
+            ConfigCommands::GetKpDb => match config.global.keepass {
                 Some(url) => io.log(format!("Current file is {url}")),
                 None => io.log(format!(
                     "The current configuration '{}' doesn't contain a default keepass db",
@@ -223,7 +225,7 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                 )),
             },
             ConfigCommands::ListFiles => {
-                let templates = config.config.get_templates();
+                let templates = config.global.get_templates();
                 if templates.is_empty() {
                     io.log(String::from("No templates defined"));
                 } else {
@@ -241,9 +243,10 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                 template,
                 output,
                 relative_to_input,
+                local,
             } => {
                 let output_path = get_output_path(&template, output, relative_to_input);
-                config.config.add_template(
+                config.global.add_template(
                     name,
                     get_absolute_path(template),
                     get_absolute_path(output_path),
@@ -251,7 +254,7 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                 config.save()?;
             }
             ConfigCommands::Prune => {
-                let templates = config.config.get_templates();
+                let templates = config.global.get_templates();
                 for template in templates {
                     io.log(format!("{template:?}"));
                     if !Path::new(&template.template_path).exists() {
@@ -260,7 +263,7 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                             template.template_path
                         ));
                         config
-                            .config
+                            .global
                             .delete_template(template.template_path, template.output_path);
                     }
                 }
@@ -269,16 +272,16 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
             ConfigCommands::Delete { template } => {
                 match template {
                     NameOrPath::Name { name } => {
-                        config.config.delete_templates(name);
+                        config.global.delete_templates(name);
                     }
                     NameOrPath::Paths { path, output } => {
-                        config.config.delete_template(path, output);
+                        config.global.delete_template(path, output);
                     }
                 }
                 config.save()?;
             }
             ConfigCommands::ListVariables => {
-                let variables = config.config.get_vars();
+                let variables = config.global.get_vars();
                 if variables.is_empty() {
                     io.log(String::from("No variables defined"));
                 } else {
@@ -299,13 +302,13 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
             ConfigCommands::AddVariables { variables } => {
                 let vars_hash = parse_variables(io, variables);
                 for (key, value) in vars_hash {
-                    config.config.add_var(key, value);
+                    config.global.add_var(key, value);
                 }
                 config.save()?;
             }
             ConfigCommands::DeleteVariables { variables } => {
                 for variable in variables {
-                    config.config.del_var(variable.to_string());
+                    config.global.del_var(variable.to_string());
                 }
                 config.save()?;
             }
@@ -319,13 +322,13 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
         } => {
             io.log(format!("Building template file: {template}"));
             io.log(format!("KeePass file: {keepass:?}"));
-            let mut variables = config.config.get_vars();
+            let mut variables = config.global.get_vars();
             variables.extend(parse_variables(io, vars));
 
             let keepass = match keepass {
                 Some(url) => url,
                 None => {
-                    match config.config.keepass {
+                    match config.global.keepass {
                         Some(url) => url,
                         None => {
                             io.log(String::from("No keepass file configured in global config or passed as parameter"));
@@ -359,11 +362,11 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
             }
         }
         Commands::BuildAll { vars } => {
-            let mut variables = config.config.get_vars();
+            let mut variables = config.global.get_vars();
             variables.extend(parse_variables(io, vars));
 
-            let files = config.config.get_templates();
-            let keepass = match config.config.keepass {
+            let files = config.global.get_templates();
+            let keepass = match config.global.keepass {
                 Some(url) => url,
                 None => {
                     io.log(String::from("No keepass file configured in global config"));
@@ -526,7 +529,7 @@ mod tests {
 
         let config = test.get();
         assert_eq!(
-            config.config.keepass,
+            config.global.keepass,
             Some(String::from(absolute_path_string))
         );
 
@@ -593,6 +596,7 @@ mod tests {
                     template: String::from("./test_resources/file-with-error"),
                     output: String::from("./tmp/error"),
                     relative_to_input: true,
+                    local: false
                 }),
                 config: Some(String::from(test.get_file_path())),
             },
@@ -604,7 +608,7 @@ mod tests {
 
         let out_config = test.get();
 
-        let templates = out_config.config.get_templates();
+        let templates = out_config.global.get_templates();
         assert_eq!(templates.len(), 4);
         assert_eq!(templates[3].name, Some(String::from("New template")));
     }
@@ -621,6 +625,7 @@ mod tests {
                     template: String::from("./test_resources/.env.example"),
                     output: String::from("./test_resources/tmp/.env"),
                     relative_to_input: false,
+                    local: false,
                 }),
                 config: Some(String::from(test.get_file_path())),
             },
@@ -632,7 +637,7 @@ mod tests {
 
         let out_config = test.get();
 
-        let templates = out_config.config.get_templates();
+        let templates = out_config.global.get_templates();
         assert_eq!(templates.len(), 2);
         assert_eq!(templates[0].name, Some(String::from("New name")));
     }
@@ -839,7 +844,7 @@ mod tests {
 
         let out_config = test.get();
 
-        let templates = out_config.config.get_templates();
+        let templates = out_config.global.get_templates();
         assert_eq!(templates.len(), 2);
         assert_eq!(templates[0].name, Some(String::from("valid")));
     }
@@ -865,7 +870,7 @@ mod tests {
 
         let out_config = test.get();
 
-        let templates = out_config.config.get_templates();
+        let templates = out_config.global.get_templates();
         assert_eq!(templates.len(), 2);
         assert_eq!(templates[1].name, Some(String::from("valid")));
     }
@@ -909,7 +914,7 @@ mod tests {
         println!("{:?}", result);
         assert!(result.is_ok());
 
-        let variables = test.get().config.get_vars();
+        let variables = test.get().global.get_vars();
         assert_eq!(variables.len(), 2);
         assert_eq!(variables.get("var1"), Some(&String::from("Some variable")));
         assert_eq!(variables.get("email"), Some(&String::from("j@k.com")));
@@ -956,11 +961,11 @@ mod tests {
         println!("{:?}", result);
         assert!(result.is_ok());
 
-        let variables = test.get().config.get_vars();
+        let variables = test.get().global.get_vars();
         assert_eq!(variables.len(), 1);
         assert_eq!(variables.get("email"), Some(&String::from("j@k.com")));
 
-        let templates = test.get().config.get_templates();
+        let templates = test.get().global.get_templates();
         assert_eq!(templates.len(), 2);
         assert_eq!(templates[0].name, Some(String::from("valid")));
     }
@@ -988,7 +993,7 @@ mod tests {
         );
         assert!(result.is_ok());
 
-        let variables = test.get().config.get_vars();
+        let variables = test.get().global.get_vars();
 
         // Only 3 variables should be added (the one without '=' is skipped)
         assert_eq!(variables.len(), 2);
