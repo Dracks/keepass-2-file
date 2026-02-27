@@ -40,6 +40,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         generate(shell, &mut cmd, name, &mut io::stdout());
         Ok(())
     } else {
-        execute(args, &Console {})
+        let project = std::env::current_dir()?.to_str().unwrap().to_string();
+        execute(project, args, &Console {})
     }
 }

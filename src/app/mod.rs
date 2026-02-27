@@ -10,7 +10,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::app::logs_prefix::LOG_PREFIX;
+use crate::app::{config::SourceConfig, logs_prefix::LOG_PREFIX};
 
 pub mod commands;
 pub mod config;
@@ -182,7 +182,7 @@ fn parse_variables(io: &dyn IOLogs, variables: Vec<String>) -> HashMap<String, S
     parsed_variables
 }
 
-pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
+pub fn execute(project: String, args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
     let home = dirs::home_dir()
         .ok_or("Could not determine home directory")?
         .to_str()
@@ -193,7 +193,7 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
         .unwrap_or_else(|| format!("{home}/.config/keepass-2-file.yaml"));
 
     // Load and parse the configuration file
-    let mut config = ConfigHandler::new(&config_path)?;
+    let mut config = ConfigHandler::new(&config_path, get_absolute_path(project))?;
 
     let warnings_enabled = !args.disable_warnings;
 
@@ -204,7 +204,7 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                 if path.is_absolute() {
                     if path.exists() {
                         io.log(format!("Setting default KeePass DB URL: {url:?}"));
-                        config.config.keepass = Some(url);
+                        config.global.keepass = Some(url);
                         config.save()?;
                     } else {
                         io.error(format!(
@@ -215,7 +215,7 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                     io.error("The file path is not absolute. It must follow this format: /Users/username/**/*.kdbx on Mac, or C:\\**\\*.kdbx on Windows".to_string());
                 }
             }
-            ConfigCommands::GetKpDb => match config.config.keepass {
+            ConfigCommands::GetKpDb => match config.global.keepass {
                 Some(url) => io.log(format!("Current file is {url}")),
                 None => io.log(format!(
                     "The current configuration '{}' doesn't contain a default keepass db",
@@ -223,16 +223,13 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                 )),
             },
             ConfigCommands::ListFiles => {
-                let templates = config.config.get_templates();
+                let templates = config.get_templates();
                 if templates.is_empty() {
                     io.log(String::from("No templates defined"));
                 } else {
                     io.log(String::from("Configured templates:"));
                     for template in templates {
-                        io.log(format!(
-                            "\t {} -> {}",
-                            template.template_path, template.output_path
-                        ));
+                        io.log(format!("\t {} -> {}", template.template, template.output));
                     }
                 }
             }
@@ -241,27 +238,32 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                 template,
                 output,
                 relative_to_input,
+                local,
             } => {
                 let output_path = get_output_path(&template, output, relative_to_input);
-                config.config.add_template(
+                let source = if local {
+                    SourceConfig::Project
+                } else {
+                    SourceConfig::Global
+                };
+                config.add_template(
+                    source,
                     name,
                     get_absolute_path(template),
                     get_absolute_path(output_path),
-                );
+                )?;
                 config.save()?;
             }
             ConfigCommands::Prune => {
-                let templates = config.config.get_templates();
+                let templates = config.get_templates();
                 for template in templates {
                     io.log(format!("{template:?}"));
-                    if !Path::new(&template.template_path).exists() {
+                    if !Path::new(&template.template).exists() {
                         io.log(format!(
-                            "Template {} does not exist, removing from config",
-                            template.template_path
+                            "Template {}:{} does not exist, removing from config",
+                            template.source, template.template
                         ));
-                        config
-                            .config
-                            .delete_template(template.template_path, template.output_path);
+                        config.delete_template(&template);
                     }
                 }
                 config.save()?;
@@ -269,16 +271,16 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
             ConfigCommands::Delete { template } => {
                 match template {
                     NameOrPath::Name { name } => {
-                        config.config.delete_templates(name);
+                        config.global.delete_templates(name);
                     }
                     NameOrPath::Paths { path, output } => {
-                        config.config.delete_template(path, output);
+                        config.global.delete_template(&path, &output);
                     }
                 }
                 config.save()?;
             }
             ConfigCommands::ListVariables => {
-                let variables = config.config.get_vars();
+                let variables = config.global.get_vars();
                 if variables.is_empty() {
                     io.log(String::from("No variables defined"));
                 } else {
@@ -299,13 +301,13 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
             ConfigCommands::AddVariables { variables } => {
                 let vars_hash = parse_variables(io, variables);
                 for (key, value) in vars_hash {
-                    config.config.add_var(key, value);
+                    config.global.add_var(key, value);
                 }
                 config.save()?;
             }
             ConfigCommands::DeleteVariables { variables } => {
                 for variable in variables {
-                    config.config.del_var(variable.to_string());
+                    config.global.del_var(variable.to_string());
                 }
                 config.save()?;
             }
@@ -319,20 +321,18 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
         } => {
             io.log(format!("Building template file: {template}"));
             io.log(format!("KeePass file: {keepass:?}"));
-            let mut variables = config.config.get_vars();
+            let mut variables = config.global.get_vars();
             variables.extend(parse_variables(io, vars));
 
             let keepass = match keepass {
                 Some(url) => url,
-                None => {
-                    match config.config.keepass {
-                        Some(url) => url,
-                        None => {
-                            io.log(String::from("No keepass file configured in global config or passed as parameter"));
-                            return Err("No keepass file configured in global config or passed as parameter".into());
-                        }
+                None => match config.keepass() {
+                    Some(url) => url,
+                    None => {
+                        io.log(String::from("No keepass file configured in global config, project config or passed as parameter"));
+                        return Err("No keepass file configured in global config, project config or passed as parameter".into());
                     }
-                }
+                },
             };
 
             let db = open_keepass_db(keepass, io)?;
@@ -359,16 +359,18 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
             }
         }
         Commands::BuildAll { vars } => {
-            let mut variables = config.config.get_vars();
+            let mut variables = config.global.get_vars();
             variables.extend(parse_variables(io, vars));
 
-            let files = config.config.get_templates();
-            let keepass = match config.config.keepass {
+            let files = config.get_templates();
+            let keepass = match config.keepass() {
                 Some(url) => url,
                 None => {
-                    io.log(String::from("No keepass file configured in global config"));
+                    io.log(String::from(
+                        "No keepass file configured in global config or project config",
+                    ));
                     return Err(
-                        "No keepass file configured in global config or passed as parameter".into(),
+                        "No keepass file configured in global config or project config".into(),
                     );
                 }
             };
@@ -388,21 +390,21 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
             for template in files {
                 let name = match template.name {
                     Some(ref name) => name.clone(),
-                    None => template.template_path.clone(),
+                    None => template.template.clone(),
                 };
                 let result = render_and_save_template(
                     &mut handlebars,
                     io,
                     name.clone(),
-                    template.template_path.clone(),
-                    template.output_path.clone(),
+                    template.template.clone(),
+                    template.output.clone(),
                     &variables,
                 );
                 if let Err(err) = result {
                     let name = match template.name {
                         Some(name) => name,
                         None => {
-                            format!("{} => {}", template.template_path, template.output_path)
+                            format!("{} => {}", template.template, template.output)
                         }
                     };
                     io.log(format!("Skipping template {name} because of: {err:?}"));
@@ -411,7 +413,7 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                 if !errors.is_empty() {
                     io.error(format!(
                         "There were some errors processing {}:",
-                        template.template_path
+                        template.template
                     ));
                     for error in errors {
                         error.to_io_logs(io, warnings_enabled);
@@ -462,6 +464,7 @@ mod tests {
 
         // Test get keepass with empty config
         let get_result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 command: Commands::Config(ConfigCommands::GetKpDb),
@@ -473,6 +476,7 @@ mod tests {
 
         // Test list templates with empty config
         let list_templates_result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 command: Commands::Config(ConfigCommands::ListFiles),
@@ -484,6 +488,7 @@ mod tests {
 
         // Test list variables with empty config
         let list_vars_result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 command: Commands::Config(ConfigCommands::ListVariables),
@@ -512,6 +517,7 @@ mod tests {
         let absolute_path_string = absolute_path.to_str().unwrap();
 
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 command: Commands::Config(ConfigCommands::SetDefaultKpDb {
@@ -526,7 +532,7 @@ mod tests {
 
         let config = test.get();
         assert_eq!(
-            config.config.keepass,
+            config.global.keepass,
             Some(String::from(absolute_path_string))
         );
 
@@ -544,6 +550,7 @@ mod tests {
 
         // Then get it
         let get_result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 command: Commands::Config(ConfigCommands::GetKpDb),
@@ -561,9 +568,15 @@ mod tests {
     #[test]
     fn test_list_files() {
         let test = TestConfig::create();
+        test.set_project_contents(
+            "templates:
+  - template_path: ./tmp/test_local
+    output_path: ./tmp/test_output",
+        );
         let io = IODebug::new();
 
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 command: Commands::Config(ConfigCommands::ListFiles),
@@ -576,16 +589,19 @@ mod tests {
 
         let logs = io.get_logs();
         println!("{:?}", logs);
-        assert_eq!(logs.len(), 4);
+        assert_eq!(logs.len(), 5);
         assert_eq!(logs[0], "Configured templates:");
         assert!(logs[2].contains(&normalize_separators("/test_resources/.env.example -> ")));
+        assert!(logs[4].contains(&test.get_project_path()));
+        assert!(logs[4].contains("tmp/test_local"));
     }
 
     #[test]
-    fn test_adding_new_template() {
+    fn test_adding_new_global_template() {
         let test = TestConfig::create();
         let io = IODebug::new();
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 command: Commands::Config(ConfigCommands::AddFile {
@@ -593,6 +609,7 @@ mod tests {
                     template: String::from("./test_resources/file-with-error"),
                     output: String::from("./tmp/error"),
                     relative_to_input: true,
+                    local: false,
                 }),
                 config: Some(String::from(test.get_file_path())),
             },
@@ -604,9 +621,44 @@ mod tests {
 
         let out_config = test.get();
 
-        let templates = out_config.config.get_templates();
+        let templates = out_config.global.get_templates();
         assert_eq!(templates.len(), 4);
         assert_eq!(templates[3].name, Some(String::from("New template")));
+    }
+
+    #[test]
+    fn test_adding_new_local_template() {
+        let test = TestConfig::create();
+        let io = IODebug::new();
+        let result = execute(
+            test.get_project_path(),
+            Cli {
+                disable_warnings: false,
+                command: Commands::Config(ConfigCommands::AddFile {
+                    name: Some(String::from("New template")),
+                    template: String::from("./test_resources/file-with-error"),
+                    output: String::from("./tmp/error"),
+                    relative_to_input: true,
+                    local: true,
+                }),
+                config: Some(String::from(test.get_file_path())),
+            },
+            &io,
+        );
+
+        println!("{:?}", result);
+        assert!(result.is_ok());
+
+        let out_config = test.get();
+
+        assert_eq!(out_config.global.get_templates().len(), 3);
+
+        let templates = out_config.local.unwrap().get_templates();
+        assert_eq!(templates.len(), 1);
+        let template = templates.first().unwrap();
+        assert_eq!(template.name, Some(String::from("New template")));
+        assert_eq!(template.template_path, "../../../file-with-error");
+        assert_eq!(template.output_path, "../../error");
     }
 
     #[test]
@@ -614,6 +666,7 @@ mod tests {
         let test = TestConfig::create_normalized();
         let io = IODebug::new();
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 command: Commands::Config(ConfigCommands::AddFile {
@@ -621,6 +674,7 @@ mod tests {
                     template: String::from("./test_resources/.env.example"),
                     output: String::from("./test_resources/tmp/.env"),
                     relative_to_input: false,
+                    local: false,
                 }),
                 config: Some(String::from(test.get_file_path())),
             },
@@ -632,16 +686,18 @@ mod tests {
 
         let out_config = test.get();
 
-        let templates = out_config.config.get_templates();
+        let templates = out_config.global.get_templates();
         assert_eq!(templates.len(), 2);
         assert_eq!(templates[0].name, Some(String::from("New name")));
     }
 
     #[test]
     fn test_rendering_invalid_handlebars_template() {
+        let test = TestConfig::create_empty_file();
         let mut io = IODebug::new();
         io.add_stdin("MyTestPass".to_string());
         let ret = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 command: Commands::Build {
@@ -678,6 +734,7 @@ mod tests {
         let test = TestConfig::create_with_errors();
         io.add_stdin("MyTestPass".to_string());
         let result = execute(
+            test.get_project_path(),
             Cli::parse_from([
                 "kp2f",
                 "--config",
@@ -707,11 +764,13 @@ mod tests {
     #[test]
     fn test_render_all_errors() {
         let _colorized = OverrideColorize::new(false);
+        let test = TestConfig::create_empty_file();
 
         let mut io = IODebug::new();
         io.add_stdin("MyTestPass".to_string());
 
         let result = execute(
+            test.get_project_path(),
             Cli::parse_from([
                 "kp2f",
                 "build",
@@ -767,11 +826,13 @@ mod tests {
     #[test]
     fn test_render_only_errors() {
         let _colorized = OverrideColorize::new(false);
+        let test = TestConfig::create_empty_file();
 
         let mut io = IODebug::new();
         io.add_stdin("MyTestPass".to_string());
 
         let result = execute(
+            test.get_project_path(),
             Cli::parse_from([
                 "kp2f",
                 "--disable-warnings",
@@ -827,6 +888,7 @@ mod tests {
         let test = TestConfig::create();
         let io = IODebug::new();
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 config: Some(String::from(test.get_file_path())),
@@ -839,7 +901,7 @@ mod tests {
 
         let out_config = test.get();
 
-        let templates = out_config.config.get_templates();
+        let templates = out_config.global.get_templates();
         assert_eq!(templates.len(), 2);
         assert_eq!(templates[0].name, Some(String::from("valid")));
     }
@@ -849,6 +911,7 @@ mod tests {
         let test = TestConfig::create();
         let io = IODebug::new();
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 config: Some(String::from(test.get_file_path())),
@@ -865,7 +928,7 @@ mod tests {
 
         let out_config = test.get();
 
-        let templates = out_config.config.get_templates();
+        let templates = out_config.global.get_templates();
         assert_eq!(templates.len(), 2);
         assert_eq!(templates[1].name, Some(String::from("valid")));
     }
@@ -876,6 +939,7 @@ mod tests {
         let mut io = IODebug::new();
         io.add_stdin("MyTestPass".to_string());
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 config: Some(String::from(test.get_file_path())),
@@ -894,6 +958,7 @@ mod tests {
         let test = TestConfig::create();
         let io = IODebug::new();
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 config: Some(String::from(test.get_file_path())),
@@ -909,7 +974,7 @@ mod tests {
         println!("{:?}", result);
         assert!(result.is_ok());
 
-        let variables = test.get().config.get_vars();
+        let variables = test.get().global.get_vars();
         assert_eq!(variables.len(), 2);
         assert_eq!(variables.get("var1"), Some(&String::from("Some variable")));
         assert_eq!(variables.get("email"), Some(&String::from("j@k.com")));
@@ -921,6 +986,7 @@ mod tests {
         let io = IODebug::new();
 
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 config: Some(test.get_file_path()),
@@ -944,6 +1010,7 @@ mod tests {
         let test = TestConfig::create_with_vars();
         let io = IODebug::new();
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 config: Some(String::from(test.get_file_path())),
@@ -956,11 +1023,11 @@ mod tests {
         println!("{:?}", result);
         assert!(result.is_ok());
 
-        let variables = test.get().config.get_vars();
+        let variables = test.get().global.get_vars();
         assert_eq!(variables.len(), 1);
         assert_eq!(variables.get("email"), Some(&String::from("j@k.com")));
 
-        let templates = test.get().config.get_templates();
+        let templates = test.get().global.get_templates();
         assert_eq!(templates.len(), 2);
         assert_eq!(templates[0].name, Some(String::from("valid")));
     }
@@ -970,6 +1037,7 @@ mod tests {
         let test = TestConfig::create();
         let io = IODebug::new();
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 config: Some(String::from(test.get_file_path())),
@@ -988,7 +1056,7 @@ mod tests {
         );
         assert!(result.is_ok());
 
-        let variables = test.get().config.get_vars();
+        let variables = test.get().global.get_vars();
 
         // Only 3 variables should be added (the one without '=' is skipped)
         assert_eq!(variables.len(), 2);
@@ -1012,6 +1080,7 @@ mod tests {
         let mut io = IODebug::new();
         io.add_stdin("MyTestPass".to_string());
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 config: Some(String::from(test.get_file_path())),
@@ -1040,6 +1109,7 @@ mod tests {
         let mut io = IODebug::new();
         io.add_stdin("MyTestPass".to_string());
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 config: Some(String::from(test.get_file_path())),
