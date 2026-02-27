@@ -4,9 +4,9 @@ use std::error::Error;
 use std::io;
 
 mod app;
+use app::IOLogs;
 use app::commands::{Cli, Commands};
 use app::execute;
-use app::IOLogs;
 
 struct Console {}
 
