@@ -1,11 +1,17 @@
 [package]
 name = "keepass-2-file"
-version = "0.6.1"
-edition = "2021"
+version.workspace = true
+author.workspace = true
+edition.workspace = true
 
 [workspace]
 members=["crates/*"]
 resolver="2"
+
+[workspace.package]
+author = "Jaume Singla"
+version = "0.6.1"
+edition = "2024"
 
 [workspace.dependencies]
 test_helpers = {path="crates/test_helpers"}

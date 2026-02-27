@@ -29,7 +29,7 @@ jobs:
         id: vars
         shell: bash
         run: |
-          echo "tag=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')" >> $GITHUB_OUTPUT;
+          echo "tag=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "keepass-2-file") | .version')" >> $GITHUB_OUTPUT;
       - name: Create/update tag
         uses: actions/github-script@v8
         with:
