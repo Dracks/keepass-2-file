@@ -1,3 +1,6 @@
+# 0.6.1 (2025-02-27)
+* fix an issue with the configuration
+
 # 0.6.0 (2025-09-12)
 * New Keepass entry selection format
 * Improved build to check for keepass DB before asking password
