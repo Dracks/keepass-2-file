@@ -1,11 +1,11 @@
 #[cfg(test)]
 pub mod tests {
+    use super::super::IOLogs;
     use super::super::commands::{Cli, Commands, ConfigCommands};
     use super::super::config::ConfigHandler;
     use super::super::execute;
-    use super::super::IOLogs;
     use std::cell::RefCell;
-    use test_helpers::{normalize_separators, TmpFile};
+    use test_helpers::{TmpFile, normalize_separators};
 
     pub struct TestConfig {
         config: TmpFile,

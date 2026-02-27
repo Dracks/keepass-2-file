@@ -1,8 +1,8 @@
 use handlebars::{
-    handlebars_helper, no_escape, Context, Handlebars, Helper, HelperDef, JsonRender, JsonValue,
-    PathAndJson, RenderContext, RenderError, ScopedJson,
+    Context, Handlebars, Helper, HelperDef, JsonRender, JsonValue, PathAndJson, RenderContext,
+    RenderError, ScopedJson, handlebars_helper, no_escape,
 };
-use keepass::{db::NodeRef, Database};
+use keepass::{Database, db::NodeRef};
 
 use super::errors_and_warnings::{ErrorCode, ErrorRecord};
 use super::tools::convert_vecs;

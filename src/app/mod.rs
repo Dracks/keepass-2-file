@@ -1,7 +1,7 @@
 use commands::{Cli, Commands, ConfigCommands, NameOrPath};
 use config::ConfigHandler;
 use errors_and_warnings::{ErrorCode, HelperErrors};
-use handlebars::{build_handlebars, LibHandlebars};
+use handlebars::{LibHandlebars, build_handlebars};
 use keepass::{Database, DatabaseKey};
 use std::{
     collections::HashMap,
@@ -495,9 +495,10 @@ mod tests {
 
         let logs = io.get_logs();
         // Check that the appropriate empty messages are displayed
-        assert!(logs
-            .iter()
-            .any(|log| log.contains("doesn't contain a default keepass db")));
+        assert!(
+            logs.iter()
+                .any(|log| log.contains("doesn't contain a default keepass db"))
+        );
         assert!(logs.iter().any(|log| log.contains("No templates defined")));
         assert!(logs.iter().any(|log| log.contains("No variables defined")));
     }
@@ -655,7 +656,10 @@ mod tests {
             &io,
         );
         if let Err(error) = ret {
-            assert_eq!(error.to_string(),"Failed to render template: Error rendering \"test_resources/file-with-error\" line 2, col 15: Helper not found keepass-2-file")
+            assert_eq!(
+                error.to_string(),
+                "Failed to render template: Error rendering \"test_resources/file-with-error\" line 2, col 15: Helper not found keepass-2-file"
+            )
         }
         let stdins_promps = io.get_stdin_promps();
         assert_eq!(stdins_promps.len(), 1);
