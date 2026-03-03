@@ -2,7 +2,7 @@ use handlebars::{
     Context, Handlebars, Helper, HelperDef, JsonRender, JsonValue, PathAndJson, RenderContext,
     RenderError, ScopedJson, handlebars_helper, no_escape,
 };
-use keepass::{Database, db::NodeRef};
+use keepass::{Database};
 
 use super::errors_and_warnings::{ErrorCode, ErrorRecord};
 use super::tools::convert_vecs;
@@ -78,31 +78,36 @@ impl KeepassHelper<'_> {
         path_str: Vec<String>,
         field: FieldSelect,
     ) -> Result<String, ErrorCode> {
-        let path: Vec<&str> = path_str.iter().map(|x| x.as_str()).collect::<Vec<&str>>();
-        if let Some(node) = self.db.root.get(&path) {
-            match node {
-                NodeRef::Group(_) => Err(ErrorCode::GroupFound(path_str)),
-                NodeRef::Entry(entry) => match field {
-                    FieldSelect::Password => match entry.get_password() {
-                        Some(pwd) => Ok(pwd.into()),
-                        None => Err(ErrorCode::NoPassword(path_str)),
-                    },
-                    FieldSelect::Username => match entry.get_username() {
-                        Some(username) => Ok(username.into()),
-                        None => Err(ErrorCode::NoUsername(path_str)),
-                    },
-                    FieldSelect::Url => match entry.get_url() {
-                        Some(url) => Ok(url.into()),
-                        None => Err(ErrorCode::NoUrl(path_str)),
-                    },
-                    FieldSelect::AdditionalAttributes { field_name } => {
-                        let result = entry.get(field_name.as_str());
-                        match result {
-                            Some(d2) => Ok(d2.into()),
-                            None => Err(ErrorCode::MissingField(path_str, field_name.clone())),
-                        }
-                    }
+        let mut path: Vec<&str> = path_str.iter().map(|x| x.as_str()).collect::<Vec<&str>>();
+        let entry = path.pop().unwrap_or("invalid-path");
+        if let Some(group) = self.db.root.group_by_path(&path) {
+            let Some(entry) = group.entry_by_name(entry) else {
+                return match group.group_by_name(entry) {
+                    Some(_) => Err(ErrorCode::GroupFound(path_str)),
+                    None => Err(ErrorCode::MissingEntry(path_str)),
+                };
+            };
+
+            match field {
+                FieldSelect::Password => match entry.get_password() {
+                    Some(pwd) => Ok(pwd.into()),
+                    None => Err(ErrorCode::NoPassword(path_str)),
                 },
+                FieldSelect::Username => match entry.get_username() {
+                    Some(username) => Ok(username.into()),
+                    None => Err(ErrorCode::NoUsername(path_str)),
+                },
+                FieldSelect::Url => match entry.get_url() {
+                    Some(url) => Ok(url.into()),
+                    None => Err(ErrorCode::NoUrl(path_str)),
+                },
+                FieldSelect::AdditionalAttributes { field_name } => {
+                    let result = entry.get(field_name.as_str());
+                    match result {
+                        Some(d2) => Ok(d2.into()),
+                        None => Err(ErrorCode::MissingField(path_str, field_name.clone())),
+                    }
+                }
             }
         } else {
             Err(ErrorCode::MissingEntry(path_str))
