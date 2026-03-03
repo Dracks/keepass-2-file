@@ -2,7 +2,7 @@ use handlebars::{
     Context, Handlebars, Helper, HelperDef, JsonRender, JsonValue, PathAndJson, RenderContext,
     RenderError, ScopedJson, handlebars_helper, no_escape,
 };
-use keepass::{Database};
+use keepass::Database;
 
 use super::errors_and_warnings::{ErrorCode, ErrorRecord};
 use super::tools::convert_vecs;
