@@ -634,9 +634,9 @@ dependencies = [
 
 [[package]]
 name = "keepass"
-version = "0.9.4"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91819441ab660f4e85783aad624e300aa61f6710caf625dbb8a28b74b8fe938a"
+checksum = "62e02f3417e2e81f7d158cafdb6ac85ff39844b3f1fcbae1ec399aa13b53d2c2"
 dependencies = [
  "aes",
  "base64",
@@ -652,14 +652,15 @@ dependencies = [
  "hex-literal",
  "hmac",
  "js-sys",
+ "quick-xml",
  "rust-argon2",
  "salsa20",
- "secstr",
+ "secrecy",
+ "serde",
  "sha2",
  "thiserror 2.0.3",
  "twofish",
  "uuid",
- "xml-rs",
  "zeroize",
 ]
 
@@ -824,6 +825,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "quick-xml"
+version = "0.39.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "958f21e8e7ceb5a1aa7fa87fab28e7c75976e0bfe7e23ff069e0a260f894067d"
+dependencies = [
+ "memchr",
+ "serde",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -904,12 +915,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "secstr"
-version = "0.5.1"
+name = "secrecy"
+version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e04f657244f605c4cf38f6de5993e8bd050c8a303f86aeabff142d5c7c113e12"
+checksum = "e891af845473308773346dc847b2c23ee78fe442e0472ac50e22a18a93d3ae5a"
 dependencies = [
- "libc",
+ "zeroize",
 ]
 
 [[package]]
@@ -1467,21 +1478,6 @@ dependencies = [
  "serde_json",
  "unicode-xid",
  "wasmparser",
-]
-
-[[package]]
-name = "xml"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72e6e0a83ae73d886ab66fc2f82b598fbbb8f373357d5f2f9f783e50e4d06435"
-
-[[package]]
-name = "xml-rs"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3a56132a0d6ecbe77352edc10232f788fc4ceefefff4cab784a98e0e16b6b51"
-dependencies = [
- "xml",
 ]
 
 [[package]]
