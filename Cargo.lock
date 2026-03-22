@@ -248,9 +248,9 @@ dependencies = [
 
 [[package]]
 name = "clap_complete"
-version = "4.5.66"
+version = "4.5.67"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c757a3b7e39161a4e56f9365141ada2a6c915a8622c408ab6bb4b5d047371031"
+checksum = "1248e420506b523e97ebd7b610656114abadbe73b04279a86768a12ce1860837"
 dependencies = [
  "clap",
 ]
@@ -285,7 +285,7 @@ version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "faf9468729b8cbcea668e36183cb69d317348c2e08e994829fb56ebfdfbaac34"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
