@@ -223,16 +223,13 @@ pub fn execute(project: String, args: Cli, io: &dyn IOLogs) -> Result<(), Box<dy
                 )),
             },
             ConfigCommands::ListFiles => {
-                let templates = config.global.get_templates();
+                let templates = config.get_templates();
                 if templates.is_empty() {
                     io.log(String::from("No templates defined"));
                 } else {
                     io.log(String::from("Configured templates:"));
                     for template in templates {
-                        io.log(format!(
-                            "\t {} -> {}",
-                            template.template_path, template.output_path
-                        ));
+                        io.log(format!("\t {} -> {}", template.template, template.output));
                     }
                 }
             }
@@ -367,7 +364,7 @@ pub fn execute(project: String, args: Cli, io: &dyn IOLogs) -> Result<(), Box<dy
             let mut variables = config.global.get_vars();
             variables.extend(parse_variables(io, vars));
 
-            let files = config.global.get_templates();
+            let files = config.get_templates();
             let keepass = match config.keepass() {
                 Some(url) => url,
                 None => {
@@ -395,21 +392,21 @@ pub fn execute(project: String, args: Cli, io: &dyn IOLogs) -> Result<(), Box<dy
             for template in files {
                 let name = match template.name {
                     Some(ref name) => name.clone(),
-                    None => template.template_path.clone(),
+                    None => template.template.clone(),
                 };
                 let result = render_and_save_template(
                     &mut handlebars,
                     io,
                     name.clone(),
-                    template.template_path.clone(),
-                    template.output_path.clone(),
+                    template.template.clone(),
+                    template.output.clone(),
                     &variables,
                 );
                 if let Err(err) = result {
                     let name = match template.name {
                         Some(name) => name,
                         None => {
-                            format!("{} => {}", template.template_path, template.output_path)
+                            format!("{} => {}", template.template, template.output)
                         }
                     };
                     io.log(format!("Skipping template {name} because of: {err:?}"));
@@ -418,7 +415,7 @@ pub fn execute(project: String, args: Cli, io: &dyn IOLogs) -> Result<(), Box<dy
                 if !errors.is_empty() {
                     io.error(format!(
                         "There were some errors processing {}:",
-                        template.template_path
+                        template.template
                     ));
                     for error in errors {
                         error.to_io_logs(io, warnings_enabled);
@@ -573,6 +570,11 @@ mod tests {
     #[test]
     fn test_list_files() {
         let test = TestConfig::create();
+        test.set_project_contents(
+            "templates:
+  - template_path: ./tmp/test_local
+    output_path: ./tmp/test_output",
+        );
         let io = IODebug::new();
 
         let result = execute(
@@ -589,9 +591,11 @@ mod tests {
 
         let logs = io.get_logs();
         println!("{:?}", logs);
-        assert_eq!(logs.len(), 4);
+        assert_eq!(logs.len(), 5);
         assert_eq!(logs[0], "Configured templates:");
         assert!(logs[2].contains(&normalize_separators("/test_resources/.env.example -> ")));
+        assert!(logs[4].contains(&test.get_project_path()));
+        assert!(logs[4].contains("tmp/test_local"));
     }
 
     #[test]

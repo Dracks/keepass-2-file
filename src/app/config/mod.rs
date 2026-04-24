@@ -4,6 +4,8 @@ use std::{fmt::Display, path::PathBuf};
 
 use yaml::YamlConfig;
 
+use crate::app::get_absolute_path;
+
 #[derive(Debug)]
 pub struct ConfigError {
     msg: String,
@@ -28,7 +30,7 @@ pub struct ConfigHandler {
     pub local: Option<YamlConfig>,
 }
 
-const PROJECT_FILE: &str = ".keepass-2-file";
+pub const PROJECT_FILE: &str = ".keepass-2-file";
 
 impl ConfigHandler {
     fn get_project_file(project: &String) -> Option<PathBuf> {
@@ -97,6 +99,13 @@ pub enum SourceConfig {
     Global,
 }
 
+pub struct TemplateInfo {
+    pub source: SourceConfig,
+    pub name: Option<String>,
+    pub template: String,
+    pub output: String,
+}
+
 impl ConfigHandler {
     pub fn keepass(&self) -> Option<String> {
         let local_config = self
@@ -154,6 +163,31 @@ impl ConfigHandler {
                 Ok(())
             }
         }
+    }
+
+    pub fn get_templates(&self) -> Vec<TemplateInfo> {
+        let mut templates: Vec<TemplateInfo> = self
+            .global
+            .get_templates()
+            .iter()
+            .map(|template| TemplateInfo {
+                source: SourceConfig::Global,
+                name: template.name.clone(),
+                template: template.template_path.clone(),
+                output: template.output_path.clone(),
+            })
+            .collect();
+        println!("Daleks: {:?}", self.local);
+        if let Some(ref local) = self.local {
+            templates.extend(local.get_templates().iter().map(|template| TemplateInfo {
+                source: SourceConfig::Project,
+                name: template.name.clone(),
+                template: format!("{}/{}", self.project, template.template_path.clone()),
+                output: format!("{}/{}", self.project, template.output_path.clone()),
+            }));
+        }
+
+        templates
     }
 }
 

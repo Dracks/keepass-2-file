@@ -1,5 +1,7 @@
 #[cfg(test)]
 pub mod tests {
+    use crate::app::config::PROJECT_FILE;
+
     use super::super::IOLogs;
     use super::super::commands::{Cli, Commands, ConfigCommands};
     use super::super::config::ConfigHandler;
@@ -163,6 +165,11 @@ variables:
 
         pub fn create_empty_file() -> TestConfig {
             TestConfig::create_config(None)
+        }
+
+        pub fn set_project_contents(&self, contents: &str) {
+            std::fs::write(format!("{}/{}", self.project.get(), PROJECT_FILE), contents)
+                .expect("The projct config file can be writen");
         }
 
         #[cfg(feature = "keep-test-files")]
