@@ -17,17 +17,30 @@ pub mod tests {
             self.config.get()
         }
 
+        pub fn get_project_path(&self) -> String {
+            self.project.get()
+        }
+
         pub fn get(&self) -> ConfigHandler {
             ConfigHandler::new(&self.config.get(), self.project.get())
                 .expect("Failed to load temp config created by TestConfig")
         }
 
         fn create_config(content: Option<String>) -> TestConfig {
-            let config = TmpFile::new_uuid("test_resources/tmp", "yml");
+            let config = TmpFile::new_uuid("test_resources/tmp", Some("yml"));
             if let Some(content) = content {
                 config.write(content)
             }
-            TestConfig { config, project: TmpFile::new("test_resources/tmp/project".into()) }
+            let project = TmpFile::new_uuid("test_resources/tmp/project", None::<String>);
+
+            std::fs::create_dir_all(project.get()).expect("Cannot create temporal project folder");
+
+            let test = TestConfig { config, project };
+
+            #[cfg(feature = "keep-test-files")]
+            let test = test.disable_auto_clean();
+
+            test
         }
 
         pub fn create() -> TestConfig {
@@ -66,6 +79,7 @@ templates:
             let test = TestConfig::create_config(Some(test_config));
             let io = IODebug::new();
             let result1 = execute(
+                test.get_project_path(),
                 Cli {
                     disable_warnings: false,
                     command: Commands::Config(ConfigCommands::AddFile {
@@ -83,6 +97,7 @@ templates:
             assert!(result1.is_ok());
 
             let result2 = execute(
+                test.get_project_path(),
                 Cli {
                     disable_warnings: false,
                     command: Commands::Config(ConfigCommands::AddFile {
@@ -150,9 +165,10 @@ variables:
             TestConfig::create_config(None)
         }
 
-        #[allow(dead_code)]
-        pub fn disable_auto_clean(&mut self) -> &TestConfig {
+        #[cfg(feature = "keep-test-files")]
+        pub fn disable_auto_clean(mut self) -> TestConfig {
             self.config.disable_auto_clean();
+            self.project.disable_auto_clean();
             self
         }
     }

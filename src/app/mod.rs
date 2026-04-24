@@ -10,7 +10,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::app::logs_prefix::LOG_PREFIX;
+use crate::app::{config::SourceConfig, logs_prefix::LOG_PREFIX};
 
 pub mod commands;
 pub mod config;
@@ -182,7 +182,7 @@ fn parse_variables(io: &dyn IOLogs, variables: Vec<String>) -> HashMap<String, S
     parsed_variables
 }
 
-pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
+pub fn execute(project: String, args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
     let home = dirs::home_dir()
         .ok_or("Could not determine home directory")?
         .to_str()
@@ -192,10 +192,8 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
         .config
         .unwrap_or_else(|| format!("{home}/.config/keepass-2-file.yaml"));
 
-    let project=std::env::current_dir()?.to_str().unwrap().to_string();
-
     // Load and parse the configuration file
-    let mut config = ConfigHandler::new(&config_path, project)?;
+    let mut config = ConfigHandler::new(&config_path, get_absolute_path(project))?;
 
     let warnings_enabled = !args.disable_warnings;
 
@@ -246,11 +244,17 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
                 local,
             } => {
                 let output_path = get_output_path(&template, output, relative_to_input);
-                config.global.add_template(
+                let source = if local {
+                    SourceConfig::Project
+                } else {
+                    SourceConfig::Global
+                };
+                config.add_template(
+                    source,
                     name,
                     get_absolute_path(template),
                     get_absolute_path(output_path),
-                );
+                )?;
                 config.save()?;
             }
             ConfigCommands::Prune => {
@@ -327,15 +331,13 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
 
             let keepass = match keepass {
                 Some(url) => url,
-                None => {
-                    match config.global.keepass {
-                        Some(url) => url,
-                        None => {
-                            io.log(String::from("No keepass file configured in global config or passed as parameter"));
-                            return Err("No keepass file configured in global config or passed as parameter".into());
-                        }
+                None => match config.keepass() {
+                    Some(url) => url,
+                    None => {
+                        io.log(String::from("No keepass file configured in global config, project config or passed as parameter"));
+                        return Err("No keepass file configured in global config, project config or passed as parameter".into());
                     }
-                }
+                },
             };
 
             let db = open_keepass_db(keepass, io)?;
@@ -366,12 +368,14 @@ pub fn execute(args: Cli, io: &dyn IOLogs) -> Result<(), Box<dyn Error>> {
             variables.extend(parse_variables(io, vars));
 
             let files = config.global.get_templates();
-            let keepass = match config.global.keepass {
+            let keepass = match config.keepass() {
                 Some(url) => url,
                 None => {
-                    io.log(String::from("No keepass file configured in global config"));
+                    io.log(String::from(
+                        "No keepass file configured in global config or project config",
+                    ));
                     return Err(
-                        "No keepass file configured in global config or passed as parameter".into(),
+                        "No keepass file configured in global config or project config".into(),
                     );
                 }
             };
@@ -465,6 +469,7 @@ mod tests {
 
         // Test get keepass with empty config
         let get_result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 command: Commands::Config(ConfigCommands::GetKpDb),
@@ -476,6 +481,7 @@ mod tests {
 
         // Test list templates with empty config
         let list_templates_result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 command: Commands::Config(ConfigCommands::ListFiles),
@@ -487,6 +493,7 @@ mod tests {
 
         // Test list variables with empty config
         let list_vars_result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 command: Commands::Config(ConfigCommands::ListVariables),
@@ -515,6 +522,7 @@ mod tests {
         let absolute_path_string = absolute_path.to_str().unwrap();
 
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 command: Commands::Config(ConfigCommands::SetDefaultKpDb {
@@ -547,6 +555,7 @@ mod tests {
 
         // Then get it
         let get_result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 command: Commands::Config(ConfigCommands::GetKpDb),
@@ -567,6 +576,7 @@ mod tests {
         let io = IODebug::new();
 
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 command: Commands::Config(ConfigCommands::ListFiles),
@@ -585,10 +595,11 @@ mod tests {
     }
 
     #[test]
-    fn test_adding_new_template() {
+    fn test_adding_new_global_template() {
         let test = TestConfig::create();
         let io = IODebug::new();
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 command: Commands::Config(ConfigCommands::AddFile {
@@ -596,7 +607,7 @@ mod tests {
                     template: String::from("./test_resources/file-with-error"),
                     output: String::from("./tmp/error"),
                     relative_to_input: true,
-                    local: false
+                    local: false,
                 }),
                 config: Some(String::from(test.get_file_path())),
             },
@@ -614,10 +625,46 @@ mod tests {
     }
 
     #[test]
+    fn test_adding_new_local_template() {
+        let test = TestConfig::create();
+        let io = IODebug::new();
+        let result = execute(
+            test.get_project_path(),
+            Cli {
+                disable_warnings: false,
+                command: Commands::Config(ConfigCommands::AddFile {
+                    name: Some(String::from("New template")),
+                    template: String::from("./test_resources/file-with-error"),
+                    output: String::from("./tmp/error"),
+                    relative_to_input: true,
+                    local: true,
+                }),
+                config: Some(String::from(test.get_file_path())),
+            },
+            &io,
+        );
+
+        println!("{:?}", result);
+        assert!(result.is_ok());
+
+        let out_config = test.get();
+
+        assert_eq!(out_config.global.get_templates().len(), 3);
+
+        let templates = out_config.local.unwrap().get_templates();
+        assert_eq!(templates.len(), 1);
+        let template = templates.first().unwrap();
+        assert_eq!(template.name, Some(String::from("New template")));
+        assert_eq!(template.template_path, "../../../file-with-error");
+        assert_eq!(template.output_path, "../../error");
+    }
+
+    #[test]
     fn test_adding_existing_template_will_replace_it() {
         let test = TestConfig::create_normalized();
         let io = IODebug::new();
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 command: Commands::Config(ConfigCommands::AddFile {
@@ -644,9 +691,11 @@ mod tests {
 
     #[test]
     fn test_rendering_invalid_handlebars_template() {
+        let test = TestConfig::create_empty_file();
         let mut io = IODebug::new();
         io.add_stdin("MyTestPass".to_string());
         let ret = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 command: Commands::Build {
@@ -683,6 +732,7 @@ mod tests {
         let test = TestConfig::create_with_errors();
         io.add_stdin("MyTestPass".to_string());
         let result = execute(
+            test.get_project_path(),
             Cli::parse_from([
                 "kp2f",
                 "--config",
@@ -712,11 +762,13 @@ mod tests {
     #[test]
     fn test_render_all_errors() {
         let _colorized = OverrideColorize::new(false);
+        let test = TestConfig::create_empty_file();
 
         let mut io = IODebug::new();
         io.add_stdin("MyTestPass".to_string());
 
         let result = execute(
+            test.get_project_path(),
             Cli::parse_from([
                 "kp2f",
                 "build",
@@ -772,11 +824,13 @@ mod tests {
     #[test]
     fn test_render_only_errors() {
         let _colorized = OverrideColorize::new(false);
+        let test = TestConfig::create_empty_file();
 
         let mut io = IODebug::new();
         io.add_stdin("MyTestPass".to_string());
 
         let result = execute(
+            test.get_project_path(),
             Cli::parse_from([
                 "kp2f",
                 "--disable-warnings",
@@ -832,6 +886,7 @@ mod tests {
         let test = TestConfig::create();
         let io = IODebug::new();
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 config: Some(String::from(test.get_file_path())),
@@ -854,6 +909,7 @@ mod tests {
         let test = TestConfig::create();
         let io = IODebug::new();
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 config: Some(String::from(test.get_file_path())),
@@ -881,6 +937,7 @@ mod tests {
         let mut io = IODebug::new();
         io.add_stdin("MyTestPass".to_string());
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 config: Some(String::from(test.get_file_path())),
@@ -899,6 +956,7 @@ mod tests {
         let test = TestConfig::create();
         let io = IODebug::new();
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 config: Some(String::from(test.get_file_path())),
@@ -926,6 +984,7 @@ mod tests {
         let io = IODebug::new();
 
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 config: Some(test.get_file_path()),
@@ -949,6 +1008,7 @@ mod tests {
         let test = TestConfig::create_with_vars();
         let io = IODebug::new();
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 config: Some(String::from(test.get_file_path())),
@@ -975,6 +1035,7 @@ mod tests {
         let test = TestConfig::create();
         let io = IODebug::new();
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 config: Some(String::from(test.get_file_path())),
@@ -1017,6 +1078,7 @@ mod tests {
         let mut io = IODebug::new();
         io.add_stdin("MyTestPass".to_string());
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 config: Some(String::from(test.get_file_path())),
@@ -1045,6 +1107,7 @@ mod tests {
         let mut io = IODebug::new();
         io.add_stdin("MyTestPass".to_string());
         let result = execute(
+            test.get_project_path(),
             Cli {
                 disable_warnings: false,
                 config: Some(String::from(test.get_file_path())),

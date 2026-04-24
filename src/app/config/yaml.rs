@@ -1,4 +1,3 @@
-
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
@@ -41,9 +40,7 @@ enum YamlConfigVersioned {
 }
 
 impl YamlConfig {
-
     pub fn new(contents: &str) -> Result<Self, serde_yaml::Error> {
-
         if contents.is_empty() {
             Ok(YamlConfig::default())
         } else {
