@@ -9,5 +9,5 @@ fn test_completion_command() {
 
     let stdout = String::from_utf8(output.stdout).unwrap();
     assert!(stdout.contains("keepass-2-file"));
-    assert!(stdout.contains("set__default__kp__db"));
+    assert!(stdout.contains("set-default-kp-db"));
 }
