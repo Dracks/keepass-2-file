@@ -80,7 +80,7 @@ impl KeepassHelper<'_> {
     ) -> Result<String, ErrorCode> {
         let mut path: Vec<&str> = path_str.iter().map(|x| x.as_str()).collect::<Vec<&str>>();
         let entry = path.pop().unwrap_or("invalid-path");
-        if let Some(group) = self.db.root.group_by_path(&path) {
+        if let Some(group) = self.db.root().group_by_path(&path) {
             let Some(entry) = group.entry_by_name(entry) else {
                 return match group.group_by_name(entry) {
                     Some(_) => Err(ErrorCode::GroupFound(path_str)),
