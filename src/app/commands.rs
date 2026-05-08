@@ -101,6 +101,12 @@ pub enum ConfigCommands {
     Delete {
         #[command(subcommand)]
         template: NameOrPath,
+        #[arg(
+            short,
+            long,
+            help = "add the file in the current project configuration"
+        )]
+        local: bool,
     },
 
     /// List default variables in the config

@@ -10,7 +10,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::app::{config::SourceConfig, logs_prefix::LOG_PREFIX};
+use crate::app::{
+    config::{SourceConfig, TemplateInfo},
+    logs_prefix::LOG_PREFIX,
+};
 
 pub mod commands;
 pub mod config;
@@ -215,7 +218,7 @@ pub fn execute(project: String, args: Cli, io: &dyn IOLogs) -> Result<(), Box<dy
                     io.error("The file path is not absolute. It must follow this format: /Users/username/**/*.kdbx on Mac, or C:\\**\\*.kdbx on Windows".to_string());
                 }
             }
-            ConfigCommands::GetKpDb => match config.global.keepass {
+            ConfigCommands::GetKpDb => match config.keepass() {
                 Some(url) => io.log(format!("Current file is {url}")),
                 None => io.log(format!(
                     "The current configuration '{}' doesn't contain a default keepass db",
@@ -268,13 +271,23 @@ pub fn execute(project: String, args: Cli, io: &dyn IOLogs) -> Result<(), Box<dy
                 }
                 config.save()?;
             }
-            ConfigCommands::Delete { template } => {
+            ConfigCommands::Delete { template, local } => {
+                let source = if local {
+                    SourceConfig::Project
+                } else {
+                    SourceConfig::Global
+                };
                 match template {
                     NameOrPath::Name { name } => {
-                        config.global.delete_templates(name);
+                        config.delete_templates(source, &name);
                     }
                     NameOrPath::Paths { path, output } => {
-                        config.global.delete_template(&path, &output);
+                        config.delete_template(&TemplateInfo {
+                            source,
+                            name: None,
+                            template: path,
+                            output,
+                        });
                     }
                 }
                 config.save()?;
@@ -627,6 +640,37 @@ mod tests {
     }
 
     #[test]
+    fn test_adding_new_abs_path_global_template() {
+        let test = TestConfig::create();
+        let io = IODebug::new();
+        let result = execute(
+            test.get_project_path(),
+            Cli {
+                disable_warnings: false,
+                command: Commands::Config(ConfigCommands::AddFile {
+                    name: Some(String::from("New template")),
+                    template: String::from("./test_resources/file-with-error"),
+                    output: String::from("/tmp/error"),
+                    relative_to_input: true,
+                    local: false,
+                }),
+                config: Some(String::from(test.get_file_path())),
+            },
+            &io,
+        );
+
+        println!("{:?}", result);
+        assert!(result.is_ok());
+
+        let out_config = test.get();
+
+        let templates = out_config.global.get_templates();
+        assert_eq!(templates.len(), 4);
+        assert_eq!(templates[3].name, Some(String::from("New template")));
+        assert_eq!(templates[3].output_path, String::from("/tmp/error"));
+    }
+
+    #[test]
     fn test_adding_new_local_template() {
         let test = TestConfig::create();
         let io = IODebug::new();
@@ -919,6 +963,7 @@ mod tests {
                     template: NameOrPath::Name {
                         name: String::from("other"),
                     },
+                    local: false,
                 }),
             },
             &io,
@@ -931,6 +976,42 @@ mod tests {
         let templates = out_config.global.get_templates();
         assert_eq!(templates.len(), 2);
         assert_eq!(templates[1].name, Some(String::from("valid")));
+    }
+
+    #[test]
+    fn test_delete_local_template() {
+        let test = TestConfig::create();
+        test.set_project_contents(
+            "templates:
+            - template_path: ./test_resources/file-with-error
+              output_path: ./tmp/error",
+        );
+        let io = IODebug::new();
+        let result = execute(
+            test.get_project_path(),
+            Cli {
+                disable_warnings: false,
+                command: Commands::Config(ConfigCommands::Delete {
+                    template: NameOrPath::Paths {
+                        path: String::from("./test_resources/file-with-error"),
+                        output: String::from("./tmp/error"),
+                    },
+                    local: true,
+                }),
+                config: Some(String::from(test.get_file_path())),
+            },
+            &io,
+        );
+
+        println!("{:?}", result);
+        assert!(result.is_ok());
+
+        let out_config = test.get();
+
+        assert_eq!(out_config.global.get_templates().len(), 3);
+
+        let templates = out_config.local.unwrap().get_templates();
+        assert_eq!(templates.len(), 0);
     }
 
     #[test]

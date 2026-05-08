@@ -41,10 +41,10 @@ enum YamlConfigVersioned {
 
 impl YamlConfig {
     pub fn new(contents: &str) -> Result<Self, serde_yaml::Error> {
-        if contents.is_empty() {
+        if contents.trim().is_empty() {
             Ok(YamlConfig::default())
         } else {
-            let versioned: YamlConfigVersioned = serde_yaml::from_str(&contents)?;
+            let versioned: YamlConfigVersioned = serde_yaml::from_str(contents)?;
             match versioned {
                 YamlConfigVersioned::Latest(conf) => Ok(conf),
                 YamlConfigVersioned::Legacy(legacy) => Ok(legacy.into()),
@@ -88,12 +88,12 @@ impl YamlConfig {
         self.templates = templates
     }
 
-    pub fn delete_templates(&mut self, name: String) {
+    pub fn delete_templates(&mut self, name: &String) {
         let templates = self.templates.clone().into_iter();
         self.templates = templates
             .filter(|template| {
                 if let Some(template_name) = &template.name {
-                    return &name != template_name;
+                    return name != template_name;
                 }
                 true
             })

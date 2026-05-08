@@ -121,8 +121,7 @@ impl ConfigHandler {
         let local_config = self
             .local
             .as_ref()
-            .map(|config| config.keepass.clone())
-            .flatten();
+            .and_then(|config| config.keepass.clone());
 
         match local_config {
             Some(keepass) => Some(keepass),
@@ -138,15 +137,24 @@ impl ConfigHandler {
         output: String,
     ) -> Result<(), ConfigError> {
         match destination {
-            SourceConfig::Global => Ok(self.global.add_template(name, template, output)),
+            SourceConfig::Global => {
+                self.global.add_template(name, template, output);
+                Ok(())
+            }
             SourceConfig::Project => {
                 let project = self.project.clone();
-                let mut local = self.local.clone().unwrap_or(YamlConfig::default());
+                let mut local = self.local.clone().unwrap_or_default();
                 let Some(relative_template) = pathdiff::diff_paths(&template, &project) else {
-                    return Err(ConfigError::new("Cannot convert template ({}) to relative").into());
+                    return Err(ConfigError::new(format!(
+                        "Cannot convert template ({}) to relative",
+                        template
+                    )));
                 };
-                let Some(relative_output) = pathdiff::diff_paths(output, &project) else {
-                    return Err(ConfigError::new("Cannot convert output ({}) to relative").into());
+                let Some(relative_output) = pathdiff::diff_paths(&output, &project) else {
+                    return Err(ConfigError::new(format!(
+                        "Cannot convert output ({}) to relative",
+                        output
+                    )));
                 };
                 local.add_template(
                     name,
@@ -154,7 +162,7 @@ impl ConfigHandler {
                         .into_os_string()
                         .into_string()
                         .map_err(|err| {
-                            ConfigError::new(&format!(
+                            ConfigError::new(format!(
                                 "Template path contains invalid UTF-8: {:?}",
                                 err
                             ))
@@ -163,7 +171,7 @@ impl ConfigHandler {
                         .into_os_string()
                         .into_string()
                         .map_err(|err| {
-                            ConfigError::new(&format!(
+                            ConfigError::new(format!(
                                 "Output path contains invalid UTF-8: {:?}",
                                 err
                             ))
@@ -185,6 +193,19 @@ impl ConfigHandler {
             SourceConfig::Global => {
                 self.global
                     .delete_template(&template.template, &template.output);
+            }
+        }
+    }
+
+    pub fn delete_templates(&mut self, source: SourceConfig, name: &String) {
+        match source {
+            SourceConfig::Project => {
+                if let Some(ref mut local) = self.local {
+                    local.delete_templates(name);
+                }
+            }
+            SourceConfig::Global => {
+                self.global.delete_templates(name);
             }
         }
     }
