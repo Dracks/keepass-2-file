@@ -104,7 +104,7 @@ pub enum ConfigCommands {
         #[arg(
             short,
             long,
-            help = "add the file in the current project configuration"
+            help = "delete the file in the current project configuration"
         )]
         local: bool,
     },
