@@ -1,5 +1,7 @@
 #[cfg(test)]
 pub mod tests {
+    use crate::app::config::PROJECT_FILE;
+
     use super::super::IOLogs;
     use super::super::commands::{Cli, Commands, ConfigCommands};
     use super::super::config::ConfigHandler;
@@ -9,6 +11,7 @@ pub mod tests {
 
     pub struct TestConfig {
         config: TmpFile,
+        project: TmpFile,
     }
 
     impl TestConfig {
@@ -16,17 +19,30 @@ pub mod tests {
             self.config.get()
         }
 
+        pub fn get_project_path(&self) -> String {
+            self.project.get()
+        }
+
         pub fn get(&self) -> ConfigHandler {
-            ConfigHandler::new(&self.config.get())
+            ConfigHandler::new(&self.config.get(), self.project.get())
                 .expect("Failed to load temp config created by TestConfig")
         }
 
         fn create_config(content: Option<String>) -> TestConfig {
-            let config = TmpFile::new_uuid("test_resources/tmp".into(), "yml".into());
+            let config = TmpFile::new_uuid("test_resources/tmp", Some("yml"));
             if let Some(content) = content {
                 config.write(content)
             }
-            TestConfig { config }
+            let project = TmpFile::new_uuid("test_resources/tmp/project", None::<String>);
+
+            std::fs::create_dir_all(project.get()).expect("Cannot create temporal project folder");
+
+            let test = TestConfig { config, project };
+
+            #[cfg(feature = "keep-test-files")]
+            let test = test.disable_auto_clean();
+
+            test
         }
 
         pub fn create() -> TestConfig {
@@ -65,6 +81,7 @@ templates:
             let test = TestConfig::create_config(Some(test_config));
             let io = IODebug::new();
             let result1 = execute(
+                test.get_project_path(),
                 Cli {
                     disable_warnings: false,
                     command: Commands::Config(ConfigCommands::AddFile {
@@ -72,6 +89,7 @@ templates:
                         template: String::from("./test_resources/.env.example"),
                         output: String::from("./test_resources/tmp/.env"),
                         relative_to_input: false,
+                        local: false,
                     }),
                     config: Some(String::from(test.get_file_path())),
                 },
@@ -81,6 +99,7 @@ templates:
             assert!(result1.is_ok());
 
             let result2 = execute(
+                test.get_project_path(),
                 Cli {
                     disable_warnings: false,
                     command: Commands::Config(ConfigCommands::AddFile {
@@ -88,6 +107,7 @@ templates:
                         template: String::from("./test_resources/.env.example"),
                         output: String::from("./test_resources/tmp/.env2"),
                         relative_to_input: false,
+                        local: false,
                     }),
                     config: Some(String::from(test.get_file_path())),
                 },
@@ -147,9 +167,15 @@ variables:
             TestConfig::create_config(None)
         }
 
-        #[allow(dead_code)]
-        pub fn disable_auto_clean(&mut self) -> &TestConfig {
+        pub fn set_project_contents(&self, contents: &str) {
+            std::fs::write(format!("{}/{}", self.project.get(), PROJECT_FILE), contents)
+                .expect("The projct config file can be writen");
+        }
+
+        #[cfg(feature = "keep-test-files")]
+        pub fn disable_auto_clean(mut self) -> TestConfig {
             self.config.disable_auto_clean();
+            self.project.disable_auto_clean();
             self
         }
     }

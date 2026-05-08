@@ -11,12 +11,21 @@ impl TmpFile {
         }
     }
 
-    pub fn new_uuid(path: String, ext: String) -> Self {
+    pub fn new_uuid(path: impl Into<String>, ext: Option<impl Into<String>>) -> Self {
         let uuid = uuid::Uuid::new_v4();
-        let config_file = format!("{path}/{uuid}.{ext}");
+        let path = path.into();
+
+        let file_path = match ext {
+            Some(ext) => {
+                let ext = ext.into();
+
+                format!("{path}/{uuid}.{ext}")
+            }
+            None => format!("{path}/{uuid}"),
+        };
         let error = format!("Unable to create temporary {} directory", &path);
         std::fs::create_dir_all(path).expect(error.as_str());
-        Self::new(config_file)
+        Self::new(file_path)
     }
 
     pub fn write(&self, contents: String) {
