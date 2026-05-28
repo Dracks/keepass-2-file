@@ -1,3 +1,10 @@
+# 1.0.1 (2026-05-28)
+* Update keepass dependency to fix problems
+
+# 1.0.0 (2026-05-22)
+* Added local configuration to keep the list of files in github
+* Update of dependencies
+
 # 0.6.2 (2025-02-27)
 * Fix an issue with the configuration
 
