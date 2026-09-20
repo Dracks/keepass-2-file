@@ -195,6 +195,12 @@ CUSTOM_FIELD={{keepass field=field-name "Entry"}}
 ESCAPED_VALUE={{stringify (keepass "Entry")}}
 ```
 
+### Ignore empty field in entry
+
+```handlebars
+EMPTY_STRING={{keepass "Missing/Entry" allowEmpty}}
+```
+
 ## Example Template
 
 ```env

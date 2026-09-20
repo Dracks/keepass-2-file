@@ -1,7 +1,7 @@
 [package]
 name = "keepass-2-file"
 version.workspace = true
-author.workspace = true
+authors.workspace = true
 edition.workspace = true
 
 [workspace]
@@ -9,7 +9,7 @@ members=["crates/*"]
 resolver="2"
 
 [workspace.package]
-author = "Jaume Singla"
+authors = ["Jaume Singla"]
 version = "1.0.1"
 edition = "2024"
 

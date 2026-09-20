@@ -72,11 +72,22 @@ impl ErrorCode {
     }
 }
 
+fn extract_and_check_empty(field: Option<&str>, allow_empty: bool) -> Option<String> {
+    field.and_then(|data| {
+        if data.is_empty() && !allow_empty {
+            None
+        } else {
+            Some(data.into())
+        }
+    })
+}
+
 impl KeepassHelper<'_> {
     fn extract_entry(
         &self,
         path_str: Vec<String>,
         field: FieldSelect,
+        allow_empty: bool,
     ) -> Result<String, ErrorCode> {
         let mut path: Vec<&str> = path_str.iter().map(|x| x.as_str()).collect::<Vec<&str>>();
         let entry = path.pop().unwrap_or("invalid-path");
@@ -88,19 +99,15 @@ impl KeepassHelper<'_> {
                 };
             };
 
+            println!("{:?}", entry.fields);
+
             match field {
-                FieldSelect::Password => match entry.get_password() {
-                    Some(pwd) => Ok(pwd.into()),
-                    None => Err(ErrorCode::NoPassword(path_str)),
-                },
-                FieldSelect::Username => match entry.get_username() {
-                    Some(username) => Ok(username.into()),
-                    None => Err(ErrorCode::NoUsername(path_str)),
-                },
-                FieldSelect::Url => match entry.get_url() {
-                    Some(url) => Ok(url.into()),
-                    None => Err(ErrorCode::NoUrl(path_str)),
-                },
+                FieldSelect::Password => extract_and_check_empty(entry.get_password(), allow_empty)
+                    .ok_or(ErrorCode::NoPassword(path_str)),
+                FieldSelect::Username => extract_and_check_empty(entry.get_username(), allow_empty)
+                    .ok_or(ErrorCode::NoUsername(path_str)),
+                FieldSelect::Url => extract_and_check_empty(entry.get_url(), allow_empty)
+                    .ok_or(ErrorCode::NoUrl(path_str)),
                 FieldSelect::AdditionalAttributes { field_name } => {
                     let result = entry.get(field_name.as_str());
                     match result {
@@ -123,11 +130,18 @@ impl HelperDef for KeepassHelper<'_> {
         _: &'rc Context,
         _: &mut RenderContext<'reg, 'rc>,
     ) -> std::result::Result<ScopedJson<'rc>, RenderError> {
-        let args = h
+        println!("{:?}", h.params());
+        let mut args = h
             .params()
             .iter()
-            .map(|x| x.render())
+            .map(|x| x.relative_path().map(|x| x.into()).unwrap_or(x.render()))
             .collect::<Vec<String>>();
+
+        let allow_empty = {
+            let pre_clean = args.len();
+            args.retain(|arg| arg != "allowEmpty");
+            args.len() != pre_clean
+        };
         if args.is_empty() {
             self.errors.register_error(ErrorCode::MissingPath);
             return Ok(ScopedJson::Derived(JsonValue::from(
@@ -142,7 +156,7 @@ impl HelperDef for KeepassHelper<'_> {
             args
         };
         let field = extract_field_type(h.hash_get("field"));
-        match self.extract_entry(path, field) {
+        match self.extract_entry(path, field, allow_empty) {
             Ok(content) => Ok(ScopedJson::from(JsonValue::from(content))),
             Err(error_code) => {
                 self.errors.register_error(error_code.clone());
@@ -284,6 +298,7 @@ mod tests {
             assert!(result.is_ok());
 
             let rendered = result.unwrap();
+            println!("{}", rendered);
             assert!(rendered.contains("PASSWORD=\"<No password found in entry>\""));
             assert!(rendered.contains("USERNAME=\"<No username found in entry>\""));
             assert!(rendered.contains("URL=\"<No URL found in entry>\""));
@@ -292,5 +307,31 @@ mod tests {
         let errors = errors_and_warnings.get_errors();
         println!("{:?}", errors);
         assert_eq!(errors.len(), 4)
+    }
+    #[test]
+    fn test_handlebars_allow_empty_missing_fields() {
+        let errors_and_warnings = HelperErrors::new();
+        {
+            let handlebars = build_handlebars(get_db(), &errors_and_warnings);
+
+            let template = "PASSWORD=\"{{keepass \"missing\" allowEmpty}}\"
+                USERNAME=\"{{keepass field=username \"missing\" allowEmpty}}\"
+                URL=\"{{keepass field=url \"missing\" allowEmpty}}\"
+                ATTRIBUTE=\"{{keepass field=missing \"missing\"}}\"
+            ";
+
+            let result = handlebars.render_template(template, &());
+            assert!(result.is_ok());
+
+            let rendered = result.unwrap();
+            println!("{}", rendered);
+            assert!(rendered.contains("PASSWORD=\"\""));
+            assert!(rendered.contains("USERNAME=\"\""));
+            assert!(rendered.contains("URL=\"\""));
+            assert!(rendered.contains("ATTRIBUTE=\"<Attribute (missing) not found in entry>\""));
+        }
+        let errors = errors_and_warnings.get_errors();
+        println!("{:?}", errors);
+        assert_eq!(errors.len(), 1)
     }
 }
