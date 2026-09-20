@@ -60,6 +60,9 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Build
         run: cargo build
+        # This is to avoid double compilation
+        env:
+          RUSTFLAGS: -Cinstrument-coverage
       - name: Run tests
         run: cargo test
         env:
