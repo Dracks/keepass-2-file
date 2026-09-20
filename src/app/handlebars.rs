@@ -136,13 +136,12 @@ impl HelperDef for KeepassHelper<'_> {
             .iter()
             .map(|x| x.relative_path().map(|x| x.into()).unwrap_or(x.render()))
             .collect::<Vec<String>>();
-        println!("{:?}", args);
+
         let allow_empty = {
             let pre_clean = args.len();
             args.retain(|arg| arg != "allowEmpty");
             args.len() != pre_clean
         };
-        println!("{:?} {allow_empty}", args);
         if args.is_empty() {
             self.errors.register_error(ErrorCode::MissingPath);
             return Ok(ScopedJson::Derived(JsonValue::from(
@@ -326,9 +325,9 @@ mod tests {
 
             let rendered = result.unwrap();
             println!("{}", rendered);
-            assert!(!rendered.contains("PASSWORD=\"<No password found in entry>\""));
-            assert!(!rendered.contains("USERNAME=\"<No username found in entry>\""));
-            assert!(!rendered.contains("URL=\"<No URL found in entry>\""));
+            assert!(rendered.contains("PASSWORD=\"\""));
+            assert!(rendered.contains("USERNAME=\"\""));
+            assert!(rendered.contains("URL=\"\""));
             assert!(rendered.contains("ATTRIBUTE=\"<Attribute (missing) not found in entry>\""));
         }
         let errors = errors_and_warnings.get_errors();
