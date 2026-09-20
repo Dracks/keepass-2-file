@@ -72,6 +72,21 @@ impl ErrorCode {
     }
 }
 
+fn extract_and_check_empty(field: Option<&str>, error: ErrorCode) -> Result<String, ErrorCode> {
+    match field.and_then(|data| {
+        if data.is_empty() {
+            None
+        } else {
+            Some(data)
+        }
+    }) {
+        Some(data) => Ok(data.into()),
+        None => Err(error)
+    }
+
+    
+} 
+
 impl KeepassHelper<'_> {
     fn extract_entry(
         &self,
@@ -88,19 +103,21 @@ impl KeepassHelper<'_> {
                 };
             };
 
+            println!("{:?}", entry.fields);
+
             match field {
-                FieldSelect::Password => match entry.get_password() {
-                    Some(pwd) => Ok(pwd.into()),
-                    None => Err(ErrorCode::NoPassword(path_str)),
-                },
-                FieldSelect::Username => match entry.get_username() {
-                    Some(username) => Ok(username.into()),
-                    None => Err(ErrorCode::NoUsername(path_str)),
-                },
-                FieldSelect::Url => match entry.get_url() {
-                    Some(url) => Ok(url.into()),
-                    None => Err(ErrorCode::NoUrl(path_str)),
-                },
+                FieldSelect::Password => extract_and_check_empty(
+                    entry.get_password(),
+                    ErrorCode::NoPassword(path_str),
+                ),
+                FieldSelect::Username => extract_and_check_empty(
+                    entry.get_username(),
+                    ErrorCode::NoUsername(path_str)
+                ),
+                FieldSelect::Url => extract_and_check_empty(
+                    entry.get_url(),
+                    ErrorCode::NoUrl(path_str)
+                ),
                 FieldSelect::AdditionalAttributes { field_name } => {
                     let result = entry.get(field_name.as_str());
                     match result {
@@ -284,6 +301,7 @@ mod tests {
             assert!(result.is_ok());
 
             let rendered = result.unwrap();
+            println!("{}", rendered);
             assert!(rendered.contains("PASSWORD=\"<No password found in entry>\""));
             assert!(rendered.contains("USERNAME=\"<No username found in entry>\""));
             assert!(rendered.contains("URL=\"<No URL found in entry>\""));
