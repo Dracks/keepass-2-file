@@ -333,7 +333,6 @@ pub fn execute(project: String, args: Cli, io: &dyn IOLogs) -> Result<(), Box<dy
             vars,
         } => {
             io.log(format!("Building template file: {template}"));
-            io.log(format!("KeePass file: {keepass:?}"));
             let mut variables = config.global.get_vars();
             variables.extend(parse_variables(io, vars));
 
@@ -348,6 +347,7 @@ pub fn execute(project: String, args: Cli, io: &dyn IOLogs) -> Result<(), Box<dy
                 },
             };
 
+            io.log(format!("KeePass file: {keepass:?}"));
             let db = open_keepass_db(keepass, io)?;
             let errors_and_warnings = HelperErrors::new();
             let mut handlebars = build_handlebars(db, &errors_and_warnings);
