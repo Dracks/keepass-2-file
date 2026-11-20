@@ -2,7 +2,7 @@ use commands::{Cli, Commands, ConfigCommands, NameOrPath};
 use config::ConfigHandler;
 use errors_and_warnings::{ErrorCode, HelperErrors};
 use handlebars::{LibHandlebars, build_handlebars};
-use keepass::{Database, DatabaseKey};
+use keepass::{Database, DatabaseKey, db::DatabaseOpenError};
 use std::{
     collections::HashMap,
     error::Error,
@@ -139,8 +139,26 @@ fn open_keepass_db(keepass_path: String, io: &dyn IOLogs) -> Result<Database, Bo
     let mut file = File::open(keepass_path).map_err(|_| "Keepass db file not found")?;
     let password = io.read(String::from("Enter the KeePass database password: "), true)?;
     let key = DatabaseKey::new().with_password(&password);
-    Database::open(&mut file, key)
-        .map_err(|_| "Database cannot be opened, maybe password is wrong?".into())
+    Database::open(&mut file, key).map_err(
+        |err| match err {
+            DatabaseOpenError::Io(io_err) => io_err.into(),
+            DatabaseOpenError::UnexpectedEof => {
+                "Unexpected End of File, Is it correctly sync/copied?".into()
+            }
+            DatabaseOpenError::VersionParse(v_err) => v_err.into(),
+            DatabaseOpenError::UnsupportedVersion => {
+                "The version of the db is not supported currently".into()
+            }
+            DatabaseOpenError::Key(key_err) => format!("Integrity key error: {key_err:?}").into(),
+            DatabaseOpenError::Cryptography(crypt_err) => {
+                format!("Cryptographic error: {crypt_err:?}").into()
+            }
+            DatabaseOpenError::Format(db_err) => {
+                format!("Database format error: {:?}", db_err).into()
+            }
+            err => format!("Unknown error: {:?}", err).into(),
+        }, // "Database cannot be opened, maybe password is wrong?".into()
+    )
 }
 
 fn render_and_save_template(
@@ -333,7 +351,6 @@ pub fn execute(project: String, args: Cli, io: &dyn IOLogs) -> Result<(), Box<dy
             vars,
         } => {
             io.log(format!("Building template file: {template}"));
-            io.log(format!("KeePass file: {keepass:?}"));
             let mut variables = config.global.get_vars();
             variables.extend(parse_variables(io, vars));
 
@@ -348,6 +365,7 @@ pub fn execute(project: String, args: Cli, io: &dyn IOLogs) -> Result<(), Box<dy
                 },
             };
 
+            io.log(format!("KeePass file: {keepass:?}"));
             let db = open_keepass_db(keepass, io)?;
             let errors_and_warnings = HelperErrors::new();
             let mut handlebars = build_handlebars(db, &errors_and_warnings);
@@ -468,6 +486,18 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert_eq!(err.to_string(), "Keepass db file not found");
+    }
+
+    #[test]
+    fn test_open_with_invalid_passwd() {
+        let mut io = IODebug::new();
+        io.add_stdin("Invalid".into());
+        let result = open_keepass_db("test_resources/test_db.kdbx".to_string(), &io);
+        let error = result.expect_err("Invalid result");
+        assert_eq!(
+            error.to_string(),
+            "Integrity key error: IncorrectKey".to_string()
+        );
     }
 
     #[test]

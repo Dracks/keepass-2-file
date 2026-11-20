@@ -99,8 +99,6 @@ impl KeepassHelper<'_> {
                 };
             };
 
-            println!("{:?}", entry.fields);
-
             match field {
                 FieldSelect::Password => extract_and_check_empty(entry.get_password(), allow_empty)
                     .ok_or(ErrorCode::NoPassword(path_str)),
@@ -130,7 +128,6 @@ impl HelperDef for KeepassHelper<'_> {
         _: &'rc Context,
         _: &mut RenderContext<'reg, 'rc>,
     ) -> std::result::Result<ScopedJson<'rc>, RenderError> {
-        println!("{:?}", h.params());
         let mut args = h
             .params()
             .iter()
