@@ -1,3 +1,7 @@
+# 1.1.0 (2026-11-20)
+* Update dependencies
+* Improve keepass database errors logs
+
 # 1.0.1 (2026-05-28)
 * Update keepass dependency to fix problems
 
